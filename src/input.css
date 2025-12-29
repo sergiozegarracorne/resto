@@ -1,0 +1,70 @@
+@import "tailwindcss";
+@source "../app/Views/**/*.php";
+@source "../app/Helpers/**/*.php";
+
+@theme {
+  --font-sans: "Roboto", sans-serif;
+}
+
+@layer base {
+  /* Roboto Local Fonts */
+  @font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+    src: url("/fonts/roboto/roboto-latin-300-normal.woff2") format("woff2"),
+      url("/fonts/roboto/roboto-latin-300-normal.woff") format("woff");
+  }
+  @font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url("/fonts/roboto/roboto-latin-400-normal.woff2") format("woff2"),
+      url("/fonts/roboto/roboto-latin-400-normal.woff") format("woff");
+  }
+  @font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url("/fonts/roboto/roboto-latin-500-normal.woff2") format("woff2"),
+      url("/fonts/roboto/roboto-latin-500-normal.woff") format("woff");
+  }
+  @font-face {
+    font-family: "Roboto";
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url("/fonts/roboto/roboto-latin-700-normal.woff2") format("woff2"),
+      url("/fonts/roboto/roboto-latin-700-normal.woff") format("woff");
+  }
+}
+
+@layer utilities {
+  .test-connection {
+    background-color: red !important;
+    border: 5px solid red !important;
+  }
+
+  /* Hide scrollbar */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Low Resource Mode - Disables Heavy Effects */
+  .low-resource-mode *,
+  .low-resource-mode *::before,
+  .low-resource-mode *::after {
+    transition: none !important;
+    animation: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    backdrop-filter: none !important;
+  }
+}
