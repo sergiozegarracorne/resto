@@ -1,22 +1,23 @@
-<?= view('includes/top'); ?>
+<?= $this->extend('layouts/main') ?>
 
-<body
-    class="bg-gray-100 h-screen w-screen overflow-hidden flex text-gray-800 font-sans <?= env('app.lowResourceMode') ? 'low-resource-mode' : '' ?>">
+<?= $this->section('title') ?>
+Resta - Punto de Venta
+<?= $this->endSection() ?>
 
-    <!-- COLUMNA IZQUIERDA: TICKET (25%) -->
-    <aside class="w-3/10 lg:w-2/10 h-full bg-white border-r border-gray-300 flex flex-col shadow-xl z-10">
-        <?= view('venta/ticket') ?>
+<?= $this->section('content') ?>
+    <!-- Contenedor Principal Flex Row -->
+    <div class="flex w-full h-full overflow-hidden">
+        
+        <!-- COLUMNA IZQUIERDA: TICKET (240px) -->
+        <aside class="w-[240px] h-full bg-white border-r border-gray-300 flex flex-col shadow-xl z-10 shrink-0">
+            <?= view('venta/ticket') ?>
+        </aside>
 
-    </aside>
+        <!-- COLUMNA DERECHA: POS (Resto) -->
+        <main class="flex-1 h-full flex flex-col bg-gray-100 min-w-0">
+            <?= view('venta/catalogo') ?>
+        </main>
 
-    <!-- COLUMNA DERECHA: POS (75%) -->
-    <main class="w-7/10 lg:w-8/10 h-full flex flex-col bg-gray-100">
+    </div>
 
-        <?= view('venta/catalogo') ?>
-
-
-    </main>
-
-</body>
-
-</html>
+<?= $this->endSection() ?>

@@ -1,13 +1,34 @@
 <!-- Encabezado Ticket -->
-<div class="p-4 border-b border-gray-200 bg-gray-50">
-    <h2 class="text-lg font-bold text-gray-700 flex items-center justify-between">
-        <span>Orden #001</span>
-        <span class="text-xs font-normal bg-green-100 text-green-700 px-2 py-1 rounded-full">En Proceso</span>
-    </h2>
-    <p class="text-sm text-gray-500 mt-1">Mesero: <span class="font-medium text-gray-700">Juan Pérez</span></p>
+<div class="p-3 border-b border-gray-200 bg-gray-50 space-y-2">
+    <!-- Fila 1: Título y Reloj (Neon Style) -->
+    <div class="flex justify-center items-center">
+         <?= view('components/clock') ?>
+    </div>
+
+    <!-- Fila 2: Mesero y Estado -->
+    <div class="flex justify-between items-center text-xs">
+         <div class="flex items-center gap-1 text-gray-600">
+            <span class="text-lg">💁</span>
+            <span class="font-bold"><?= session('usuario_turno')['nombre'] ?? 'Sin Asignar' ?></span>
+         </div>
+         <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium text-[10px]">En Proceso</span>
+    </div>
+
+    <!-- Fila 3: Tipo de Tarifa (Selector) -->
+    <div class="bg-white border border-gray-200 rounded-lg p-1 flex items-center justify-between shadow-sm">
+        <span class="text-[10px] text-gray-500 uppercase font-bold px-1">Tarifa:</span>
+        <select class="text-xs font-bold text-indigo-700 bg-transparent outline-none cursor-pointer flex-1 text-right">
+            <option value="general">CARTA GENERAL</option>
+            <option value="promo">PROMOCIÓN</option>
+            <option value="personal">PERSONAL</option>
+            <option value="socio">SOCIO / VIP</option>
+        </select>
+    </div>
 </div>
 
-<!-- Lista de Items (Scrollable) -->
+
+
+<!-- Lista de Items (Scrollable) --> 
 <div class="flex-1 relative min-h-0 group/scroll">
     <div class="h-full overflow-y-auto p-2 custom-scrollbar scroll-smooth" id="lista-ticket">
         <!-- JS renderizará aquí -->
@@ -78,10 +99,10 @@
             total += subtotal;
 
             html += `
-            <div class="flex justify-between items-start p-1 hover:bg-gray-50 rounded-md cursor-pointer group transition-colors border-b border-gray-100 last:border-0 animation-fade-in">
+            <div class="flex justify-between items-start p-2 hover:bg-gray-50 rounded-md cursor-pointer group transition-colors border-b border-gray-100 last:border-0 animation-fade-in">
                 <div class="flex-1">
                     <p class="font-normal text-xs text-gray-800">
-                        <span class="font-bold text-indigo-600">${item.cantidad}x</span> ${item.nombre}
+                        <span class="font-bold text-indigo-600">${item.cantidad} x</span> ${item.nombre}
                     </p>
                     ${item.detalle ? `<p class="text-[10px] text-gray-400">${item.detalle}</p>` : ''}
                 </div>

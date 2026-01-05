@@ -21,7 +21,7 @@
 
                     <?php if (!empty($usuarios) && is_array($usuarios)): ?>
                         <?php foreach ($usuarios as $usuario): ?>
-                            <?= boton_vendedor($usuario['nombre'], $usuario['imagen']) ?>
+                            <?= boton_vendedor($usuario['nombre'], $usuario['imagen'] ?? '', '', json_encode($usuario)) ?>
                         <?php endforeach; ?>
                     <?php else: ?>
                         <div class="col-span-full text-center py-10 text-gray-400">

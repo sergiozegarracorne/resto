@@ -9,12 +9,19 @@ if (!function_exists('boton_vendedor')) {
      * @param string $accion (Opcional) Función JS al hacer click
      * @return string HTML output
      */
-    function boton_vendedor(string $nombre = 'Vendedor', string $imagen = '', string $accion = ''): string
+    function boton_vendedor(string $nombre = 'Vendedor', string $imagen = '', string $accion = '', string $data = ''): string
     {
+      
         $imagen = $imagen ?: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
         $nombreEsc = esc($nombre);
+        // IMPORTANTE: Escapar comillas para que el JSON no rompa el atributo HTML ni el string JS
+        // 1. Escapamos ' para JS
+        $jsSafe = str_replace("'", "\'", $data);
+        // 2. Escapamos " para HTML
+        $dataSafe = htmlspecialchars($jsSafe, ENT_QUOTES, 'UTF-8');
+
         // Acción por defecto abre el teclado
-        $accion = $accion ?: "abrirTeclado('" . $nombreEsc . "')";
+        $accion = $accion ?: "abrirTeclado('" . $nombreEsc . "','" . $dataSafe . "')"; 
 
         return <<<HTML
         <button 
@@ -162,12 +169,25 @@ BUTTON;
             // Variables de estado
             let claveActual = '';
             let vendedorActual = '';
+            let vendedorData = {};
 
             if (typeof window.abrirTeclado === 'undefined') {
                  // Abrir
-                window.abrirTeclado = function(nombreVendedor) {
+                window.abrirTeclado = function(nombreVendedor, dataJson) {
                     vendedorActual = nombreVendedor;
                     document.getElementById('nombreVendedorTeclado').innerText = nombreVendedor;
+                    
+                    // Parsear datos del usuario
+                    try {
+                        vendedorData = JSON.parse(dataJson || '{}');
+                        console.log('Datos Usuario:', vendedorData);
+
+                        //return false;
+                        // Ejemplo: alert(usuario.rol);
+                    } catch (e) {
+                         console.error('Error parseando JSON usuario', e);
+                    }
+
                     claveActual = '';
                     actualizarDisplay();
                     
@@ -229,7 +249,8 @@ BUTTON;
                         
                         setTimeout(() => {
                             // alert('Clave Correcta para ' + vendedorActual + '. Redirigiendo...');
-                            window.location.href = '/venta';
+                            //alert(vendedorData);
+                            window.location.href = '/venta/' + vendedorData.id_usuario;
                             display.classList.remove('text-green-400');
                             cerrarTeclado();
                         }, 500);

@@ -3,7 +3,7 @@
 @source "../app/Helpers/**/*.php";
 
 @theme {
-  --font-sans: "Roboto", sans-serif;
+  --font-sans: "Roboto", sans-serif; 
 }
 
 @layer base {
