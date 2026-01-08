@@ -11,7 +11,7 @@ if (!function_exists('boton_vendedor')) {
      */
     function boton_vendedor(string $nombre = 'Vendedor', string $imagen = '', string $accion = '', string $data = ''): string
     {
-      
+
         $imagen = $imagen ?: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
         $nombreEsc = esc($nombre);
         // IMPORTANTE: Escapar comillas para que el JSON no rompa el atributo HTML ni el string JS
@@ -21,7 +21,7 @@ if (!function_exists('boton_vendedor')) {
         $dataSafe = htmlspecialchars($jsSafe, ENT_QUOTES, 'UTF-8');
 
         // Acción por defecto abre el teclado
-        $accion = $accion ?: "abrirTeclado('" . $nombreEsc . "','" . $dataSafe . "')"; 
+        $accion = $accion ?: "abrirTeclado('" . $nombreEsc . "','" . $dataSafe . "')";
 
         return <<<HTML
         <button 
@@ -142,6 +142,7 @@ BUTTON;
                     <!-- Display Clave -->
                     <div class="mt-2 bg-indigo-800/50 rounded-lg p-2 flex justify-center items-center h-10">
                         <span id="displayTeclado" class="text-xl text-white font-mono tracking-widest"></span>
+                        <input type="text" id="displayTecladoInput" class="hidden">
                     </div>
                 </div>
 
@@ -181,11 +182,8 @@ BUTTON;
                     try {
                         vendedorData = JSON.parse(dataJson || '{}');
                         console.log('Datos Usuario:', vendedorData);
-
-                        //return false;
-                        // Ejemplo: alert(usuario.rol);
                     } catch (e) {
-                         console.error('Error parseando JSON usuario', e);
+                        console.error('Error parseando JSON usuario', e);
                     }
 
                     claveActual = '';
@@ -231,6 +229,9 @@ BUTTON;
                 // Actualizar Display
                 window.actualizarDisplay = function() {
                     const display = document.getElementById('displayTeclado');
+                    // Sync hidden input
+                    document.getElementById('displayTecladoInput').value = claveActual;
+
                     display.innerText = claveActual.length > 0 ? '*'.repeat(claveActual.length) : '';
                     
                     if(claveActual.length === 0) {
@@ -245,22 +246,53 @@ BUTTON;
                 window.enviarTeclado = function() {
                     if (claveActual.length > 0) {
                         const display = document.getElementById('displayTeclado');
-                        display.classList.add('text-green-400');
                         
-                        setTimeout(() => {
-                            // alert('Clave Correcta para ' + vendedorActual + '. Redirigiendo...');
-                            //alert(vendedorData);
-                            window.location.href = '/venta/' + vendedorData.id_usuario;
-                            display.classList.remove('text-green-400');
-                            cerrarTeclado();
-                        }, 500);
+                        // Preparar datos
+                        const payload = {
+                            id_usuario: vendedorData.id_usuario, // Asegúrate que este campo existe en tu JSON
+                            clave: claveActual
+                        };
+
+                        // llamada API
+                        fetch('/api/verificar_vendedor', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            },
+                            body: JSON.stringify(payload)
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                display.classList.add('text-green-400');
+                                setTimeout(() => {
+                                    window.location.href = '/venta'; // O la URL que corresponda
+                                }, 300);
+                            } else {
+                                vibrarError();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            vibrarError();
+                        });
                         
                     } else {
-                        const contenido = document.getElementById('contenidoTeclado');
-                        contenido.classList.add('animate-pulse', 'border-red-500'); 
-                        setTimeout(() => contenido.classList.remove('animate-pulse'), 500);
+                        vibrarError();
                     }
                 };
+
+                window.vibrarError = function() {
+                    const display = document.getElementById('displayTeclado');
+                    display.innerText = 'E R R O R';
+                    setTimeout(() => {
+                        display.innerText = '_ _ _ _ _ _';
+                        // Limpiar clave erronea opcionalmente ? 
+                        claveActual = ''; 
+                        actualizarDisplay();
+                    }, 500);
+                }
             }
         </script>
 HTML;

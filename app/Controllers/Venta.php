@@ -16,16 +16,16 @@ class Venta extends BaseController
         if ($idUsuario > 0) {
             $usuario = $usuarioModel->where('id_usuario', $idUsuario)->first();
             if ($usuario) {
-                 session()->set('usuario_turno', [
+                session()->set('usuario_turno', [
                     'id' => $usuario['id_usuario'],
                     'nombre' => $usuario['nombre'],
                     'rol' => $usuario['rol'] ?? 'Mesero'
                 ]);
             }
         }
-        
+
         // Cargar Categorias
-        $categorias = $categoriaModel->where('estado', 1)->findAll(); 
+        $categorias = $categoriaModel->where('estado', 1)->findAll();
 
         // Cargar Productos
         $productos = $productoModel->findAll();

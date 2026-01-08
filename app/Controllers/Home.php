@@ -6,13 +6,13 @@ use App\Models\UsuarioModel;
 
 class Home extends BaseController
 {
-    public function index(int $id=0): string
+    public function index(int $id = 0): string
     {
         helper('components');
         $usuarioModel = new UsuarioModel();
         $data['usuarios'] = $usuarioModel->getActiveUsers();
 
-        return view('home/index', $data); 
+        return view('home/index', $data);
     }
 
     public function ingress($id)
@@ -29,7 +29,7 @@ class Home extends BaseController
                 'nombre' => $usuario['nombre'],
                 'rol' => $usuario['rol'] ?? 'Mesero'
             ]);
-            
+
             // Redirigir a ventas
             return redirect()->to('/venta');
         }
