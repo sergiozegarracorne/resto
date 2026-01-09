@@ -18,6 +18,10 @@ Resta - Punto de Venta
         <?= view('venta/catalogo') ?>
     </main>
 
+    <!-- OVERLAYS -->
+    <?= view('components/mesas_overlay') ?>
+
+
 </div>
 
 <?= $this->endSection() ?>

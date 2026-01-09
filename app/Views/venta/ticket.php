@@ -2,16 +2,26 @@
 <div class="p-3 border-b border-gray-200 bg-gray-50 space-y-2">
     <!-- Fila 1: Título y Reloj (Neon Style) -->
     <div class="flex justify-center items-center">
-         <?= view('components/clock') ?>
+        <?= view('components/clock') ?>
     </div>
 
     <!-- Fila 2: Mesero y Estado -->
     <div class="flex justify-between items-center text-xs">
-         <div class="flex items-center gap-1 text-gray-600">
+        <div class="flex items-center gap-1 text-gray-600">
             <span class="text-lg">💁</span>
             <span class="font-bold"><?= session('usuario_turno')['nombre'] ?? 'Sin Asignar' ?></span>
-         </div>
-         <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium text-[10px]">En Proceso</span>
+        </div>
+        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium text-[10px]">En Proceso</span>
+    </div>
+
+    <!-- Fila 2.5: Mesa Activa -->
+    <div id="mesa-info-display"
+        class="hidden flex justify-between items-center bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-100 animate-pulse-once">
+        <span class="font-bold text-indigo-700 flex items-center gap-1">
+            🍽️ <span id="mesa-nombre-display">Mesa ?</span>
+        </span>
+        <span class="text-[10px] bg-white px-2 py-0.5 rounded shadow-sm text-indigo-600 font-bold uppercase"
+            id="mesa-estado-display">...</span>
     </div>
 
     <!-- Fila 3: Tipo de Tarifa (Selector) -->
@@ -28,7 +38,7 @@
 
 
 
-<!-- Lista de Items (Scrollable) --> 
+<!-- Lista de Items (Scrollable) -->
 <div class="flex-1 relative min-h-0 group/scroll">
     <div class="h-full overflow-y-auto p-2 custom-scrollbar scroll-smooth" id="lista-ticket">
         <!-- JS renderizará aquí -->
@@ -58,10 +68,61 @@
 </div>
 
 <script>
-    // Estado del carrito
+    // Estado del carrito y mesa
     let carrito = [];
+    let currentMesa = null;
+    let saveTimeout = null;
 
-    // Función Global: Agregar Producto
+    // Interface used by Mesas Overlay
+    window.app = {
+        selectMesa: async function (mesa) {
+            currentMesa = mesa;
+            updateMesaUI();
+            await loadPedido(mesa.id);
+        }
+    };
+
+    function updateMesaUI() {
+        const ui = document.getElementById('mesa-info-display');
+        if (currentMesa) {
+            document.getElementById('mesa-nombre-display').innerText = currentMesa.nombre;
+            document.getElementById('mesa-estado-display').innerText = currentMesa.estado.toUpperCase();
+            ui.classList.remove('hidden');
+        } else {
+            ui.classList.add('hidden');
+        }
+    }
+
+    async function loadPedido(idMesa) {
+        const container = document.getElementById('lista-ticket');
+        // Show loading indicator usually, but keep it simple
+
+        try {
+            const res = await fetch('<?= base_url('api/get_mesa_pedido') ?>/' + idMesa + '?t=' + Date.now());
+            const data = await res.json();
+
+            if (data.success) {
+                carrito = data.items.map(i => ({
+                    id: i.id,
+                    nombre: i.nombre,
+                    precio: parseFloat(i.precio),
+                    cantidad: parseInt(i.cantidad),
+                    detalle: ''
+                }));
+                if (currentMesa) currentMesa.estado = 'ocupada'; // Optimistic update
+            } else {
+                carrito = [];
+                if (currentMesa) currentMesa.estado = 'libre';
+            }
+            updateMesaUI(); // Refresh status
+        } catch (e) {
+            console.error('Error loading order', e);
+            carrito = [];
+        }
+        renderizarTicket();
+    }
+
+    // Función Global: Agregar Producto (Modificada con AutoSave)
     window.agregarProducto = function (id, nombre, precio) {
         const existente = carrito.find(item => item.id == id);
 
@@ -73,12 +134,43 @@
                 nombre: nombre,
                 precio: parseFloat(precio),
                 cantidad: 1,
-                detalle: '' // Futuro: opciones
+                detalle: ''
             });
         }
 
         renderizarTicket();
+        autoSave();
     };
+
+    function autoSave() {
+        if (!currentMesa) return;
+
+        // Show saving indicator?
+        const statusEl = document.getElementById('mesa-estado-display');
+        if (statusEl) statusEl.innerText = 'GUARDANDO...';
+
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(async () => {
+            try {
+                const res = await fetch('<?= base_url('api/save_pedido') ?>', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id_mesa: currentMesa.id,
+                        productos: carrito
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (statusEl) statusEl.innerText = 'GUARDADO';
+                    setTimeout(() => { if (statusEl) statusEl.innerText = 'OCUPADA'; }, 1000);
+                }
+            } catch (e) {
+                console.error('Save error', e);
+                if (statusEl) statusEl.innerText = 'ERROR';
+            }
+        }, 800); // 800ms debounce
+    }
 
     // Función Renderizar
     function renderizarTicket() {
@@ -99,24 +191,41 @@
             total += subtotal;
 
             html += `
-            <div class="flex justify-between items-start p-2 hover:bg-gray-50 rounded-md cursor-pointer group transition-colors border-b border-gray-100 last:border-0 animation-fade-in">
+            <div class="flex justify-between items-start p-3 hover:bg-gray-50 rounded-md cursor-pointer group transition-colors border-b border-gray-100 last:border-0 animation-fade-in">
                 <div class="flex-1">
                     <p class="font-normal text-xs text-gray-800">
                         <span class="font-bold text-indigo-600">${item.cantidad} x</span> ${item.nombre}
                     </p>
                     ${item.detalle ? `<p class="text-[10px] text-gray-400">${item.detalle}</p>` : ''}
                 </div>
-                <span class="font-bold text-gray-700 text-xs">S/ ${subtotal.toFixed(2)}</span>
+                <div class="flex flex-col items-end gap-1">
+                    <span class="font-bold text-gray-700 text-xs">S/ ${subtotal.toFixed(2)}</span>
+                    <button onclick="eliminarProducto(${item.id}); event.stopPropagation();" class="text-xs text-red-300 hover:text-red-500 p-1 hover:bg-red-50 rounded">
+                        🗑️
+                    </button>
+                </div>
             </div>
             `;
         });
 
         contenedor.innerHTML = html;
         displayTotal.innerText = 'S/ ' + total.toFixed(2);
-
-        // Auto scroll al final si es nuevo item
-        // contenedor.scrollTop = contenedor.scrollHeight;
     }
+
+    // Función Global: Eliminar Producto
+    window.eliminarProducto = function (id) {
+        const idx = carrito.findIndex(i => i.id == id);
+        if (idx > -1) {
+            // Si hay más de 1, restar. Si no, confirmar y borrar.
+            if (carrito[idx].cantidad > 1) {
+                carrito[idx].cantidad--;
+            } else {
+                carrito.splice(idx, 1);
+            }
+            renderizarTicket();
+            autoSave();
+        }
+    };
 
     // Estilo para animación simple
     const style = document.createElement('style');
