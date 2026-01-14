@@ -16,6 +16,7 @@ class Api extends BaseController
             'datetime' => date('Y-m-d H:i:s')
         ]);
     }
+
     public function verificar_vendedor()
     {
         $json = $this->request->getJSON();
@@ -233,5 +234,34 @@ class Api extends BaseController
             ->update();
 
         return $this->respond(['success' => true, 'message' => 'Mesas separadas correctamente']);
+    }
+    // 6. Actualizar Posiciones
+    public function update_mesas_positions()
+    {
+        $json = $this->request->getJSON();
+
+        if (!isset($json->mesas) || !is_array($json->mesas)) {
+            return $this->failValidationError('Datos incorrectos');
+        }
+
+        $mesaModel = new \App\Models\MesaModel();
+
+        $data = [];
+        foreach ($json->mesas as $m) {
+            $m = (object) $m;
+            if (isset($m->id) && isset($m->x) && isset($m->y)) {
+                $data[] = [
+                    'id' => $m->id,
+                    'x' => $m->x,
+                    'y' => $m->y
+                ];
+            }
+        }
+
+        if (!empty($data)) {
+            $mesaModel->updateBatch($data, 'id');
+        }
+
+        return $this->respond(['success' => true, 'message' => 'Posiciones actualizadas']);
     }
 }

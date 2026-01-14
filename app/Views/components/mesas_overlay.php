@@ -46,23 +46,29 @@
         </div>
 
         <!-- Footer de Opciones -->
-        <div class="h-16 bg-gray-50 border-t border-gray-200 flex items-center justify-between px-6 shrink-0 z-20">
+        <div class="h-24 bg-gray-50 border-t border-gray-200 flex items-center justify-between px-6 py-6 shrink-0 z-20">
             <div id="lbl-modo" class="text-xs text-gray-400 font-medium flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
                 Modo Selección
             </div>
 
-            <div id="footer-controls" class="flex items-center gap-3">
+            <div id="footer-controls" class="flex items-center gap-4 ">
                 <button id="btn-unir" onclick="setSelectionMode('unir')"
-                    class="px-4 py-2 bg-white border border-indigo-200 text-indigo-600 rounded-xl text-sm font-bold shadow-sm hover:shadow-md hover:border-indigo-400 hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2 group">
+                    class="px-4 py-4 bg-white border border-indigo-200 text-indigo-600 rounded text-sm font-bold shadow-sm hover:shadow-md hover:border-indigo-400 hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2 group">
                     <span class="group-hover:scale-110 transition-transform">🔗</span>
                     <span>Unir Mesas</span>
                 </button>
 
                 <button id="btn-separar" onclick="setSelectionMode('separar')"
-                    class="px-4 py-2 bg-white border border-orange-200 text-orange-600 rounded-xl text-sm font-bold shadow-sm hover:shadow-md hover:border-orange-400 hover:bg-orange-50 active:scale-95 transition-all flex items-center gap-2 group">
+                    class="px-4 py-4 bg-white border border-orange-200 text-orange-600 rounded text-sm font-bold shadow-sm hover:shadow-md hover:border-orange-400 hover:bg-orange-50 active:scale-95 transition-all flex items-center gap-2  group">
                     <span class="group-hover:scale-110 transition-transform">✂️</span>
                     <span>Separar</span>
+                </button>
+
+                <button id="btn-mover" onclick="setSelectionMode('mover')"
+                    class="px-4 py-4 bg-white border border-blue-200 text-blue-600 rounded text-sm font-bold shadow-sm hover:shadow-md hover:border-blue-400 hover:bg-blue-50 active:scale-95 transition-all flex items-center gap-2 group">
+                    <span class="group-hover:scale-110 transition-transform">🖐️</span>
+                    <span>Mover</span>
                 </button>
             </div>
         </div>
@@ -77,7 +83,14 @@
         // Estado de Selección
         let selectionMode = null; // null, 'unir', 'separar'
         let selectedMesas = [];
+
         let mesaPrincipal = null;
+
+        // Estado Drag & Drop
+        let isDragging = false;
+        let dragMesaId = null;
+        let dragOffset = { x: 0, y: 0 };
+        let mesasChanged = false; // Para saber si activar botón guardar
 
         window.toggleMesasOverlay = function () {
             const overlay = document.getElementById('mesas-overlay');
@@ -94,6 +107,8 @@
             try {
                 const res = await fetch('<?= base_url('api/get_pisos_mesas') ?>');
                 const data = await res.json();
+                //console.log(data);
+                
                 pisosData = data;
 
                 // Default to first floor
@@ -130,12 +145,8 @@
             `;
                 btn.onclick = () => {
                     currentPiso = piso.id;
-                    renderMesas(currentPiso);
-                    renderPisosNav();
-                    // Si cambiamos de piso, mantenemos selección si es posible, pero simplificamos limpiando para evitar líos visuales cross-floor por ahora
-                    // selectedMesas = []; 
-                    // mesaPrincipal = null;
-                    // updateUIButtons();
+                    // Recargar datos para tener el estado actualizado
+                    loadMesas();
                 };
                 nav.appendChild(btn);
             });
@@ -152,27 +163,45 @@
             const mapArea = document.createElement('div');
             mapArea.className = 'relative w-full h-full z-10 bg-yellow-50/50';
 
+            // Capa para líneas CSS
+            const linesContainer = document.createElement('div');
+            linesContainer.className = 'absolute inset-0 pointer-events-none z-0 file-lines-layer';
+            mapArea.appendChild(linesContainer);
             piso.mesas.forEach(mesa => {
+                
+                console.log(mesa);
+                
+                
                 const isSelected = selectedMesas.includes(mesa.id);
                 const isPrincipal = mesaPrincipal === mesa.id;
                 const isOcupada = mesa.estado === 'ocupada';
-                const hasPadre = mesa.id_padre != null; // Es una mesa unida (hija)
+                const hasPadre = mesa.id_padre != null; // Es una mesa unida (hija)                
+                
+                // Capa para líneas CSS
+                // Se dibuja en drawLines()
+                /*
+                const x1 = parseInt(mesa.x) + 32; 
+                 ... moved to drawLines ...
+                */
 
-                // Si tiene padre, verificamos si su padre está en este mismo piso para dibujar alguna línea (opcional futuro)
-                // Por ahora, las hijas se ven normales pero bloqueadas o con indicador
-
-                let styles = 'bg-white border-emerald-400/50 text-gray-600 hover:border-emerald-500 hover:bg-emerald-50 ring-2 ring-emerald-100 ring-offset-2';
+                let styles = 'bg-emerald-50 border-emerald-500 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-600 ring-2 ring-emerald-200 ring-offset-1 shadow-sm';
                 let icon = '🍽️';
+                let tienePadre = '';
 
                 if (isOcupada) {
-                    styles = 'bg-red-50 border-red-500/50 text-red-600 ring-2 ring-red-200 ring-offset-2';
+                    styles = 'bg-indigo-50 border-indigo-500/50 text-indigo-600 ring-2 ring-indigo-200 ring-offset-2';
                     icon = '🍝';
                 }
 
                 if (hasPadre) {
                     // Mesa hija / unida
                     styles = 'bg-gray-100 border-gray-300 text-gray-400 opacity-80';
-                    icon = '🔗';
+                    icon = '🔗'; 
+                    // Mostrar visualmente a qué mesa está unida
+                    const mPadre = findMesaById(mesa.id_padre);
+                    const nombrePadre = mPadre ? mPadre.nombre : mesa.id_padre;
+                    tienePadre = `<span class="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm border border-white z-30">${nombrePadre}</span>`;
+                    
                 }
 
                 if (isSelected) {
@@ -208,7 +237,14 @@
                     }
                 }
 
+                if (selectionMode === 'mover') {
+                    styles += ' cursor-move hover:scale-105 hover:shadow-xl';
+                    icon = '🖐️';
+                    disabled = true; // Desactivar click normal
+                }
+
                 const el = document.createElement('button');
+                el.id = `mesa-${mesa.id}`;
                 el.className = `absolute flex flex-col items-center justify-center shadow-lg rounded-md w-16 h-12 transition-all duration-300 active:scale-95 border-[2px] group ${styles}`;
                 el.style.left = mesa.x + 'px';
                 el.style.top = mesa.y + 'px';
@@ -218,17 +254,137 @@
                     ${icon}
                 </span>
                 <span class="font-bold text-xs leading-none mt-1">${mesa.nombre}</span>
-            `;
+            ${tienePadre}
+            `
+            ;
 
                 if (!disabled) {
                     el.onclick = () => onSelectMesa(mesa);
+                }
+
+                if (selectionMode === 'mover') {
+                    el.onmousedown = (e) => startDrag(e, mesa, el);
                 }
 
                 mapArea.appendChild(el);
             });
 
             container.appendChild(mapArea);
+            drawLines(piso);
             updateStatusText();
+        }
+
+        function drawLines(piso) {
+            // Buscar contenedor de líneas, si no existe, no dibujar (aunque debería existir)
+            // Pero como estamos dentro de mapArea que recreamos, mejor lo buscamos o limpiamos.
+            // Como renderMesas recrea el mapArea, necesitamos recrear linesContainer allí o buscarlo.
+            // Solución: renderMesas crea linesContainer. Aqui solo agregamos lineas.
+            
+            // Oops, renderMesas creates linesContainer but we need reference.
+            // Better: drawLines clears and fills existing container inside mapArea.
+            const container = document.getElementById('mesas-container');
+            if(!container) return;
+            const linesContainer = container.querySelector('.file-lines-layer');
+            if(!linesContainer) return;
+            
+            linesContainer.innerHTML = ''; // Clear
+
+            piso.mesas.forEach(mesa => {
+                 if (mesa.id_padre) {
+                    const padre = piso.mesas.find(m => m.id == mesa.id_padre);
+                    if (padre) {
+                        const x1 = parseInt(mesa.x) + 32; 
+                        const y1 = parseInt(mesa.y) + 24; 
+                        const x2 = parseInt(padre.x) + 32;
+                        const y2 = parseInt(padre.y) + 24;
+
+                        const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+                        const angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
+
+                        const line = document.createElement('div');
+                        line.className = 'absolute h-0.5 origin-left pointer-events-none';
+                        line.style.width = `${length}px`;
+                        line.style.left = `${x1}px`;
+                        line.style.top = `${y1}px`;
+                        line.style.transform = `rotate(${angle}deg)`;
+                        line.style.borderTop = '2px dashed #a5b4fc';
+
+                        linesContainer.appendChild(line);
+                    }
+                }
+            });
+        }
+        
+        // --- Drag Functions ---
+
+        function startDrag(e, mesa, el) {
+            if (selectionMode !== 'mover') return;
+            e.preventDefault();
+            isDragging = true;
+            dragMesaId = mesa.id;
+            
+            // Calculate offset logic
+            // Using scrollLeft/scrollTop of container if needed, but clientX is usually enough
+            const rect = el.getBoundingClientRect();
+            dragOffset.x = e.clientX - rect.left;
+            dragOffset.y = e.clientY - rect.top;
+            
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', endDrag);
+            
+            el.style.zIndex = 100; // Bring to front
+            el.style.cursor = 'grabbing';
+        }
+
+        function onDrag(e) {
+            if (!isDragging) return;
+            
+            const container = document.getElementById('mesas-container');
+            const containerRect = container.getBoundingClientRect();
+            
+            // Calculate new position relative to container
+            // Account for container scroll
+            let newX = e.clientX - containerRect.left - dragOffset.x + container.scrollLeft;
+            let newY = e.clientY - containerRect.top - dragOffset.y + container.scrollTop;
+            
+            // Boundaries (0 to large number)
+            if (newX < 0) newX = 0;
+            if (newY < 0) newY = 0;
+            
+            // Update Data
+            const piso = pisosData.find(p => p.id == currentPiso);
+            const mesa = piso.mesas.find(m => m.id === dragMesaId);
+            if (mesa) {
+                mesa.x = newX;
+                mesa.y = newY;
+                
+                // Update DOM Element
+                const el = document.getElementById(`mesa-${dragMesaId}`);
+                if (el) {
+                    el.style.left = newX + 'px';
+                    el.style.top = newY + 'px';
+                }
+                
+                // Redraw Lines
+                drawLines(piso);
+                
+                if (!mesasChanged) {
+                    mesasChanged = true;
+                    updateUIButtons();
+                }
+            }
+        }
+
+        function endDrag() {
+            if(!isDragging) return;
+            isDragging = false;
+            const el = document.getElementById(`mesa-${dragMesaId}`);
+            if(el) {
+                el.style.zIndex = '';
+                el.style.cursor = 'move';
+            }
+            dragMesaId = null;
+            document.removeEventListener('mousemove', onDrag);
         }
 
         async function onSelectMesa(mesa) {
@@ -307,6 +463,7 @@
                 selectionMode = mode;
                 selectedMesas = [];
                 mesaPrincipal = null;
+                mesasChanged = false; // Reset cambios
                 renderMesas(currentPiso);
                 updateUIButtons();
             }
@@ -316,6 +473,7 @@
             selectionMode = null;
             selectedMesas = [];
             mesaPrincipal = null;
+            mesasChanged = false;
             renderMesas(currentPiso);
             updateUIButtons();
         }
@@ -339,6 +497,14 @@
                     res = await fetch('<?= base_url('api/separar_mesas') ?>', {
                         method: 'POST', body: JSON.stringify({ ids_mesas: selectedMesas })
                     });
+                } else if (selectionMode === 'mover') {
+                    // Recopilar posiciones actuales del piso actual
+                    const currentMesas = pisosData.find(p => p.id == currentPiso).mesas;
+                    const updates = currentMesas.map(m => ({ id: m.id, x: m.x, y: m.y }));
+                    
+                    res = await fetch('<?= base_url('api/update_mesas_positions') ?>', {
+                        method: 'POST', body: JSON.stringify({ mesas: updates })
+                    });
                 }
 
                 const data = await res.json();
@@ -360,7 +526,9 @@
 
         function updateUIButtons() {
             const btnUnir = document.getElementById('btn-unir');
+
             const btnSeparar = document.getElementById('btn-separar');
+            const btnMover = document.getElementById('btn-mover');
             const containerAcciones = document.getElementById('acciones-container');
             const lblModo = document.getElementById('lbl-modo');
 
@@ -378,14 +546,21 @@
             } else if (selectionMode === 'separar') {
                 btnSeparar.classList.add('ring-2', 'ring-orange-500', 'bg-orange-50');
                 btnUnir.classList.add('opacity-50', 'pointer-events-none');
+                btnMover.classList.add('opacity-50', 'pointer-events-none');
+            } else if (selectionMode === 'mover') {
+                btnMover.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50');
+                btnUnir.classList.add('opacity-50', 'pointer-events-none');
+                btnSeparar.classList.add('opacity-50', 'pointer-events-none');
             } else {
                 btnUnir.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50', 'opacity-50', 'pointer-events-none');
                 btnSeparar.classList.remove('ring-2', 'ring-orange-500', 'bg-orange-50', 'opacity-50', 'pointer-events-none');
+                btnMover.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50', 'opacity-50', 'pointer-events-none');
             }
 
             // Botón Confirmar
             const canConfirm = (selectionMode === 'unir' && mesaPrincipal && selectedMesas.length > 0) ||
-                (selectionMode === 'separar' && selectedMesas.length > 0);
+                (selectionMode === 'separar' && selectedMesas.length > 0) ||
+                (selectionMode === 'mover' && mesasChanged);
 
             let btnConfirm = document.getElementById('btn-confirmar');
             if (canConfirm) {
@@ -395,8 +570,11 @@
                     btnConfirm.id = 'btn-confirmar';
                     btnConfirm.onclick = window.confirmarAccion;
                     btnConfirm.className = 'ml-4 px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-green-500/30 active:scale-95 transition-all animate-bounce-in';
-                    btnConfirm.innerHTML = 'CONFIRMAR ✅';
+                    btnConfirm.innerHTML = selectionMode === 'mover' ? 'GUARDAR UBICACIONES 💾' : 'CONFIRMAR ✅';
                     document.querySelector('#footer-controls').appendChild(btnConfirm);
+                } else {
+                     // Actualizar texto si cambia modo
+                     btnConfirm.innerHTML = selectionMode === 'mover' ? 'GUARDAR UBICACIONES 💾' : 'CONFIRMAR ✅';
                 }
             } else {
                 if (btnConfirm) btnConfirm.remove();
@@ -422,5 +600,4 @@
         // Ya están definidos en el HTML, pero necesitamos asignarles IDs o onclicks aqui o en HTML.
         // Vamos a modificar el HTML en el siguiente paso o inyectarlo aqui si podemos, pero es mejor editar el HTML arriba.
     });
-</script>
 </script>
