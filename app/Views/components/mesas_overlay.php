@@ -1,24 +1,21 @@
 <!-- Table Selection Overlay -->
 <div id="mesas-overlay"
     class="fixed inset-0 bg-black/50 z-50  hidden flex items-center justify-center backdrop-blur-sm transition-opacity duration-300">
-    <div class="bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in-up transform transition-all"
-        style="width: 90vw; height: 90vh;">
+    <div class="bg-white rounded-sm shadow-2xl flex flex-col overflow-hidden animate-fade-in-up transform transition-all"
+        style="width: 95vw; height: 95vh;">
 
         <!-- Header -->
         <div
-            class="h-16  from-indigo-600 to-purple-600 text-gray-500 flex items-center justify-between px-6 shadow-md shrink-0">
+            class="h-16  from-indigo-600 to-purple-600 text-gray-600 flex items-center justify-between px-6 pr-1 shadow-md shrink-0">
             <h2 class="text-2xl font-bold flex items-center gap-3">
                 <span class="text-3xl">🍽️</span>
                 <span>Selección de Mesa</span>
             </h2>
-            <div class="flex items-center gap-4">
+            <div class="flex items-center ">
 
                 <button onclick="toggleMesasOverlay()"
-                    class="p-2 hover:bg-white/20 rounded-full transition-colors focus:outline-none">
-                    <svg class="w-20 h-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    class="border-2 border-red-400 bg-red-200 p-3 hover:bg-red-500/20 rounded-sm text-xl transition-colors focus:outline-none">
+                    CERRAR
                 </button>
             </div>
         </div>
@@ -108,7 +105,7 @@
                 const res = await fetch('<?= base_url('api/get_pisos_mesas') ?>');
                 const data = await res.json();
                 //console.log(data);
-                
+
                 pisosData = data;
 
                 // Default to first floor
@@ -168,15 +165,15 @@
             linesContainer.className = 'absolute inset-0 pointer-events-none z-0 file-lines-layer';
             mapArea.appendChild(linesContainer);
             piso.mesas.forEach(mesa => {
-                
+
                 console.log(mesa);
-                
-                
+
+
                 const isSelected = selectedMesas.includes(mesa.id);
                 const isPrincipal = mesaPrincipal === mesa.id;
                 const isOcupada = mesa.estado === 'ocupada';
                 const hasPadre = mesa.id_padre != null; // Es una mesa unida (hija)                
-                
+
                 // Capa para líneas CSS
                 // Se dibuja en drawLines()
                 /*
@@ -184,24 +181,26 @@
                  ... moved to drawLines ...
                 */
 
-                let styles = 'bg-emerald-50 border-emerald-500 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-600 ring-2 ring-emerald-200 ring-offset-1 shadow-sm';
-                let icon = '🍽️';
+                let styles = 'bg-emerald-50 border-emerald-500 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-600  shadow-sm';
+                // Icono Libre (Mesa vacía / Check)
+                let icon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
                 let tienePadre = '';
 
                 if (isOcupada) {
-                    styles = 'bg-indigo-50 border-indigo-500/50 text-indigo-600 ring-2 ring-indigo-200 ring-offset-2';
-                    icon = '🍝';
+                    styles = 'bg-indigo-50 border-indigo-500/50 text-indigo-600  ';
+                    // Icono Ocupada (Usuarios / Grupo)
+                    icon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
                 }
 
                 if (hasPadre) {
                     // Mesa hija / unida
                     styles = 'bg-gray-100 border-gray-300 text-gray-400 opacity-80';
-                    icon = '🔗'; 
+                    icon = '🔗';
                     // Mostrar visualmente a qué mesa está unida
                     const mPadre = findMesaById(mesa.id_padre);
                     const nombrePadre = mPadre ? mPadre.nombre : mesa.id_padre;
                     tienePadre = `<span class="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-sm border border-white z-30">${nombrePadre}</span>`;
-                    
+
                 }
 
                 if (isSelected) {
@@ -256,7 +255,7 @@
                 <span class="font-bold text-xs leading-none mt-1">${mesa.nombre}</span>
             ${tienePadre}
             `
-            ;
+                    ;
 
                 if (!disabled) {
                     el.onclick = () => onSelectMesa(mesa);
@@ -279,22 +278,22 @@
             // Pero como estamos dentro de mapArea que recreamos, mejor lo buscamos o limpiamos.
             // Como renderMesas recrea el mapArea, necesitamos recrear linesContainer allí o buscarlo.
             // Solución: renderMesas crea linesContainer. Aqui solo agregamos lineas.
-            
+
             // Oops, renderMesas creates linesContainer but we need reference.
             // Better: drawLines clears and fills existing container inside mapArea.
             const container = document.getElementById('mesas-container');
-            if(!container) return;
+            if (!container) return;
             const linesContainer = container.querySelector('.file-lines-layer');
-            if(!linesContainer) return;
-            
+            if (!linesContainer) return;
+
             linesContainer.innerHTML = ''; // Clear
 
             piso.mesas.forEach(mesa => {
-                 if (mesa.id_padre) {
+                if (mesa.id_padre) {
                     const padre = piso.mesas.find(m => m.id == mesa.id_padre);
                     if (padre) {
-                        const x1 = parseInt(mesa.x) + 32; 
-                        const y1 = parseInt(mesa.y) + 24; 
+                        const x1 = parseInt(mesa.x) + 32;
+                        const y1 = parseInt(mesa.y) + 24;
                         const x2 = parseInt(padre.x) + 32;
                         const y2 = parseInt(padre.y) + 24;
 
@@ -314,7 +313,7 @@
                 }
             });
         }
-        
+
         // --- Drag Functions ---
 
         function startDrag(e, mesa, el) {
@@ -322,52 +321,52 @@
             e.preventDefault();
             isDragging = true;
             dragMesaId = mesa.id;
-            
+
             // Calculate offset logic
             // Using scrollLeft/scrollTop of container if needed, but clientX is usually enough
             const rect = el.getBoundingClientRect();
             dragOffset.x = e.clientX - rect.left;
             dragOffset.y = e.clientY - rect.top;
-            
+
             document.addEventListener('mousemove', onDrag);
             document.addEventListener('mouseup', endDrag);
-            
+
             el.style.zIndex = 100; // Bring to front
             el.style.cursor = 'grabbing';
         }
 
         function onDrag(e) {
             if (!isDragging) return;
-            
+
             const container = document.getElementById('mesas-container');
             const containerRect = container.getBoundingClientRect();
-            
+
             // Calculate new position relative to container
             // Account for container scroll
             let newX = e.clientX - containerRect.left - dragOffset.x + container.scrollLeft;
             let newY = e.clientY - containerRect.top - dragOffset.y + container.scrollTop;
-            
+
             // Boundaries (0 to large number)
             if (newX < 0) newX = 0;
             if (newY < 0) newY = 0;
-            
+
             // Update Data
             const piso = pisosData.find(p => p.id == currentPiso);
             const mesa = piso.mesas.find(m => m.id === dragMesaId);
             if (mesa) {
                 mesa.x = newX;
                 mesa.y = newY;
-                
+
                 // Update DOM Element
                 const el = document.getElementById(`mesa-${dragMesaId}`);
                 if (el) {
                     el.style.left = newX + 'px';
                     el.style.top = newY + 'px';
                 }
-                
+
                 // Redraw Lines
                 drawLines(piso);
-                
+
                 if (!mesasChanged) {
                     mesasChanged = true;
                     updateUIButtons();
@@ -376,10 +375,10 @@
         }
 
         function endDrag() {
-            if(!isDragging) return;
+            if (!isDragging) return;
             isDragging = false;
             const el = document.getElementById(`mesa-${dragMesaId}`);
-            if(el) {
+            if (el) {
                 el.style.zIndex = '';
                 el.style.cursor = 'move';
             }
@@ -501,7 +500,7 @@
                     // Recopilar posiciones actuales del piso actual
                     const currentMesas = pisosData.find(p => p.id == currentPiso).mesas;
                     const updates = currentMesas.map(m => ({ id: m.id, x: m.x, y: m.y }));
-                    
+
                     res = await fetch('<?= base_url('api/update_mesas_positions') ?>', {
                         method: 'POST', body: JSON.stringify({ mesas: updates })
                     });
@@ -569,12 +568,12 @@
                     btnConfirm = document.createElement('button');
                     btnConfirm.id = 'btn-confirmar';
                     btnConfirm.onclick = window.confirmarAccion;
-                    btnConfirm.className = 'ml-4 px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl text-sm font-bold shadow-lg hover:shadow-green-500/30 active:scale-95 transition-all animate-bounce-in';
-                    btnConfirm.innerHTML = selectionMode === 'mover' ? 'GUARDAR UBICACIONES 💾' : 'CONFIRMAR ✅';
+                    btnConfirm.className = 'ml-4 px-6 py-4 bg-green-500 text-green-50 rounded-sm text-sm font-bold shadow-lg hover:shadow-green-500/30 active:scale-95 transition-all animate-bounce-in';
+                    btnConfirm.innerHTML = selectionMode === 'mover' ? 'GUARDAR UBICACIONES' : 'CONFIRMAR';
                     document.querySelector('#footer-controls').appendChild(btnConfirm);
                 } else {
-                     // Actualizar texto si cambia modo
-                     btnConfirm.innerHTML = selectionMode === 'mover' ? 'GUARDAR UBICACIONES 💾' : 'CONFIRMAR ✅';
+                    // Actualizar texto si cambia modo
+                    btnConfirm.innerHTML = selectionMode === 'mover' ? 'GUARDAR UBICACIONES' : 'CONFIRMAR';
                 }
             } else {
                 if (btnConfirm) btnConfirm.remove();

@@ -6,6 +6,7 @@ use CodeIgniter\Database\Migration;
 
 class AddIconoToCategorias extends Migration
 {
+    protected $DBGroup = 'default';
     public function up()
     {
         // Check if column exists first to be safe, or just add it (forge usually fails if exists, so we trust it's missing based on error)

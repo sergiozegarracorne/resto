@@ -4,15 +4,16 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class PedidoDetalleModel extends Model
+class PedidoOperacionesModel extends Model
 {
-    protected $table = 'pedido_detalles';
+    protected $DBGroup = 'operaciones';
+    protected $table = 'pedidos';
     protected $primaryKey = 'id';
     protected $useAutoIncrement = true;
     protected $returnType = 'array';
     protected $useSoftDeletes = false;
     protected $protectFields = true;
-    protected $allowedFields = ['id_pedido', 'id_producto', 'nombre_producto', 'cantidad', 'precio'];
+    protected $allowedFields = ['id_mesa', 'id_usuario', 'total', 'estado', 'created_at', 'updated_at', 'uuid'];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;
@@ -21,9 +22,9 @@ class PedidoDetalleModel extends Model
     protected array $castHandlers = [];
 
     // Dates
-    protected $useTimestamps = false;
+    protected $useTimestamps = true; 
     protected $dateFormat = 'datetime';
-    protected $createdField = 'created_at';
+    protected $createdField = 'created_at'; 
     protected $updatedField = 'updated_at';
     protected $deletedField = 'deleted_at';
 

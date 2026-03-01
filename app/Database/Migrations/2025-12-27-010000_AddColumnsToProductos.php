@@ -6,6 +6,7 @@ use CodeIgniter\Database\Migration;
 
 class AddColumnsToProductos extends Migration
 {
+    protected $DBGroup = 'default';
     public function up()
     {
         $fields = [];

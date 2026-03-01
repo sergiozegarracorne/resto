@@ -2,7 +2,7 @@
 <div class="p-3 border-b border-gray-200 bg-gray-50 space-y-2">
     <!-- Fila 1: Título y Reloj (Neon Style) -->
     <div class="flex justify-center items-center">
-        <?= view('components/clock') ?>
+        <?= componente_reloj() ?>
     </div>
 
     <!-- Fila 2: Mesero y Estado -->
@@ -16,7 +16,7 @@
 
     <!-- Fila 2.5: Mesa Activa -->
     <div id="mesa-info-display"
-        class="hidden flex justify-between items-center bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-100 animate-pulse-once">
+        class="hidden flex justify-between items-center bg-indigo-50 px-3 py-2jj rounded-lg border border-indigo-100 animate-pulse-once">
         <span class="font-bold text-indigo-700 flex items-center gap-1">
             🍽️ <span id="mesa-nombre-display">Mesa ?</span>
         </span>
@@ -57,10 +57,11 @@
     </div>
 
     <div class="grid grid-cols-2 gap-2">
-        <button class="bg-red-50 text-red-600 font-bold py-3 rounded-lg hover:bg-red-100 transition-colors">
+        <button onclick="showCancelModal()"
+            class="bg-red-50 text-red-600 font-bold py-3 rounded-lg hover:bg-red-100 transition-colors active:scale-95">
             Cancelar
         </button>
-        <button
+        <button onclick="showCheckoutModal()"
             class="bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 shadow-lg hover:shadow-indigo-500/30 transition-all active:scale-95">
             Cobrar
         </button>
@@ -234,4 +235,369 @@
         .animation-fade-in { animation: fadeIn 0.2s ease-out; }
     `;
     document.head.appendChild(style);
+
+
+    // --- Logic de Cancelación ---
+
+    window.showCancelModal = function () {
+        if (!currentMesa || carrito.length === 0) {
+            // Si no hay mesa o pedido, tal vez solo limpiar local
+            return;
+        }
+        document.getElementById('cancel-modal').classList.remove('hidden');
+    }
+
+    window.hideCancelModal = function () {
+        document.getElementById('cancel-modal').classList.add('hidden');
+    }
+
+    window.confirmCancel = async function () {
+        const btn = document.getElementById('btn-confirm-cancel');
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = 'Cancelando...';
+
+        try {
+            const res = await fetch('<?= base_url('api/cancelar_pedido') ?>', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id_mesa: currentMesa.id
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                // Limpiar UI
+                carrito = [];
+                renderizarTicket();
+                hideCancelModal();
+
+                // Actualizar estado mesa localmente
+                if (currentMesa) {
+                    currentMesa.estado = 'libre';
+                    updateMesaUI();
+                }
+
+                // Notificar al overlay si está abierto (para refrescar mapa)
+                // O recargar mesas en overlay si es posible.
+                // Lo ideal es que el overlay se refresque solo o le avisemos.
+                if (window.toggleMesasOverlay && !document.getElementById('mesas-overlay').classList.contains('hidden')) {
+                    if (window.loadMesas) window.loadMesas();
+                }
+
+            } else {
+                alert('Error: ' + (data.messages?.error || data.message));
+            }
+
+        } catch (e) {
+            console.error(e);
+            alert('Error al conectar');
+        }
+
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+
+    // --- Logic de Cobro ---
+
+    // Variables de estado
+    let checkoutState = {
+        method: 'efectivo', // efectivo, tarjeta, monedero
+        received: 0,
+        total: 0
+    };
+
+    window.showCheckoutModal = function() {
+        if (!currentMesa || carrito.length === 0) return;
+
+        checkoutState.total = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+        checkoutState.received = 0;
+        checkoutState.method = 'efectivo';
+        
+        renderCheckoutItems();
+        updateCheckoutUI();
+        document.getElementById('checkout-modal').classList.remove('hidden');
+    }
+
+    window.hideCheckoutModal = function() {
+        document.getElementById('checkout-modal').classList.add('hidden');
+    }
+
+    function renderCheckoutItems() {
+        const container = document.getElementById('checkout-items-list');
+        container.innerHTML = carrito.map(item => `
+            <div class="flex justify-between py-2 border-b border-gray-100 last:border-0">
+                <div>
+                    <span class="font-bold text-gray-700">${item.cantidad}x</span> ${item.nombre}
+                </div>
+                <span class="font-bold">S/ ${(item.precio * item.cantidad).toFixed(2)}</span>
+            </div>
+        `).join('');
+        
+        document.getElementById('checkout-total-display').innerText = 'S/ ' + checkoutState.total.toFixed(2);
+    }
+
+    window.setPaymentMethod = function(method) {
+        checkoutState.method = method;
+        updateCheckoutUI();
+    }
+
+    window.addCash = function(amount) {
+        if (amount === 'exact') {
+            checkoutState.received = checkoutState.total;
+        } else {
+            checkoutState.received += amount;
+        }
+        updateCheckoutUI();
+    }
+
+    window.clearCash = function() {
+        checkoutState.received = 0;
+        updateCheckoutUI();
+    }
+
+    function updateCheckoutUI() {
+        // Update Tabs
+        ['efectivo', 'tarjeta', 'monedero'].forEach(m => {
+            const el = document.getElementById(`tab-${m}`);
+            if (m === checkoutState.method) {
+                el.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                el.classList.remove('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+            } else {
+                el.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                el.classList.add('bg-white', 'text-gray-600', 'hover:bg-gray-50');
+            }
+        });
+
+        // Show/Hide Cash Controls
+        const cashControls = document.getElementById('cash-controls');
+        if (checkoutState.method === 'efectivo') {
+            cashControls.classList.remove('hidden');
+        } else {
+            cashControls.classList.add('hidden');
+        }
+
+        // Update calculations
+        const receivedEl = document.getElementById('amount-received-display');
+        const changeEl = document.getElementById('change-display');
+        const confirmBtn = document.getElementById('btn-confirm-checkout');
+
+        if (checkoutState.method === 'efectivo') {
+            receivedEl.innerText = 'S/ ' + checkoutState.received.toFixed(2);
+            const change = checkoutState.received - checkoutState.total;
+            
+            if (change >= 0) {
+                changeEl.innerText = 'S/ ' + change.toFixed(2);
+                changeEl.classList.remove('text-red-500');
+                changeEl.classList.add('text-green-600');
+                confirmBtn.disabled = false;
+                confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                changeEl.innerText = 'Faltan S/ ' + Math.abs(change).toFixed(2);
+                changeEl.classList.add('text-red-500');
+                changeEl.classList.remove('text-green-600');
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        } else {
+            // For card/wallet, always enable
+            confirmBtn.disabled = false;
+            confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    window.processPayment = async function() {
+        const btn = document.getElementById('btn-confirm-checkout');
+        btn.innerHTML = '<span class="animate-spin inline-block mr-2">↻</span> Procesando...';
+        btn.disabled = true;
+
+        try {
+            const res = await fetch('<?= base_url('api/cobrar_pedido') ?>', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    id_mesa: currentMesa.id,
+                    metodo: checkoutState.method,
+                    total: checkoutState.total,
+                    recibido: checkoutState.method === 'efectivo' ? checkoutState.received : checkoutState.total,
+                    items: carrito
+                })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                // Success feedback
+                alert('Venta Completada!'); // Replace with better UI later
+                
+                // Clear everything
+                carrito = [];
+                renderizarTicket();
+                hideCheckoutModal();
+                if (currentMesa) {
+                    currentMesa.estado = 'libre';
+                    updateMesaUI();
+                }
+                if (window.loadMesas) window.loadMesas();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error de conexión');
+        }
+        
+        btn.innerHTML = 'CONFIRMAR PAGO';
+        btn.disabled = false;
+    }
+
 </script>
+
+<!-- Checkout Modal -->
+<div id="checkout-modal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-90 backdrop-blur-sm transition-opacity"></div>
+
+    <div class="fixed inset-0 z-50 w-screen overflow-hidden flex items-center justify-center p-4">
+        <div class="bg-gray-100 w-full h-full max-w-6xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row">
+            
+            <!-- Left Side: Order Summary -->
+            <div class="w-full md:w-1/3 bg-white border-r border-gray-200 flex flex-col h-full">
+                <div class="p-4 bg-gray-50 border-b border-gray-200">
+                    <h3 class="font-bold text-gray-800 text-lg">Resumen de Orden</h3>
+                    <p class="text-sm text-gray-500" id="checkout-mesa-name">Mesa Actual</p>
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 space-y-2" id="checkout-items-list">
+                    <!-- Items go here -->
+                </div>
+                <div class="p-6 bg-gray-50 border-t border-gray-200">
+                    <div class="flex justify-between items-center text-2xl font-black text-gray-800">
+                        <span>Total</span>
+                        <span id="checkout-total-display">S/ 0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Payment Controls -->
+            <div class="w-full md:w-2/3 bg-gray-100 flex flex-col h-full">
+                <!-- Header -->
+                <div class="p-4 flex justify-between items-center">
+                    <h2 class="text-xl font-bold text-gray-700">Método de Pago</h2>
+                    <button onclick="hideCheckoutModal()" class="text-gray-400 hover:text-gray-600 p-2">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Tabs -->
+                <div class="flex px-6 gap-4 mb-6">
+                    <button id="tab-efectivo" onclick="setPaymentMethod('efectivo')" class="flex-1 py-4 rounded-xl font-bold text-lg transition-all transform active:scale-95 flex flex-col items-center gap-2 bg-indigo-600 text-white shadow-md">
+                        <span>💵</span> Efectivo
+                    </button>
+                    <button id="tab-tarjeta" onclick="setPaymentMethod('tarjeta')" class="flex-1 py-4 rounded-xl font-bold text-lg transition-all transform active:scale-95 flex flex-col items-center gap-2 bg-white text-gray-600 hover:bg-gray-50">
+                        <span>💳</span> Tarjeta
+                    </button>
+                    <button id="tab-monedero" onclick="setPaymentMethod('monedero')" class="flex-1 py-4 rounded-xl font-bold text-lg transition-all transform active:scale-95 flex flex-col items-center gap-2 bg-white text-gray-600 hover:bg-gray-50">
+                        <span>📱</span> Digital
+                    </button>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="flex-1 px-6 overflow-y-auto">
+                    
+                    <!-- Cash Controls -->
+                    <div id="cash-controls" class="space-y-6">
+                        
+                        <!-- Display Ranges -->
+                        <div class="bg-white rounded-xl p-4 shadow-sm flex justify-between items-center">
+                            <div>
+                                <p class="text-sm text-gray-500 font-bold uppercase">Monto Recibido</p>
+                                <p class="text-3xl font-bold text-gray-800" id="amount-received-display">S/ 0.00</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm text-gray-500 font-bold uppercase">Vuelto</p>
+                                <p class="text-3xl font-bold text-green-600" id="change-display">S/ 0.00</p>
+                            </div>
+                        </div>
+
+                        <!-- Quick Money Buttons -->
+                        <div class="grid grid-cols-4 gap-3">
+                            <button onclick="addCash(10)" class="bg-white border border-gray-200 text-gray-700 font-bold text-xl py-4 rounded-lg shadow-sm hover:bg-indigo-50 hover:border-indigo-200 active:scale-95 transition-all">S/ 10</button>
+                            <button onclick="addCash(20)" class="bg-white border border-gray-200 text-gray-700 font-bold text-xl py-4 rounded-lg shadow-sm hover:bg-indigo-50 hover:border-indigo-200 active:scale-95 transition-all">S/ 20</button>
+                            <button onclick="addCash(50)" class="bg-white border border-gray-200 text-gray-700 font-bold text-xl py-4 rounded-lg shadow-sm hover:bg-indigo-50 hover:border-indigo-200 active:scale-95 transition-all">S/ 50</button>
+                            <button onclick="addCash(100)" class="bg-white border border-gray-200 text-gray-700 font-bold text-xl py-4 rounded-lg shadow-sm hover:bg-indigo-50 hover:border-indigo-200 active:scale-95 transition-all">S/ 100</button>
+                            <button onclick="addCash(200)" class="bg-white border border-gray-200 text-gray-700 font-bold text-xl py-4 rounded-lg shadow-sm hover:bg-indigo-50 hover:border-indigo-200 active:scale-95 transition-all">S/ 200</button>
+                            
+                            <button onclick="addCash('exact')" class="col-span-2 bg-indigo-100 text-indigo-700 font-bold text-xl py-4 rounded-lg shadow-sm hover:bg-indigo-200 active:scale-95 transition-all">Exacto</button>
+                            
+                            <button onclick="clearCash()" class="bg-red-100 text-red-600 font-bold text-xl py-4 rounded-lg shadow-sm hover:bg-red-200 active:scale-95 transition-all">
+                                ⌫
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder for other methods -->
+                    <div id="other-method-msg" class="hidden text-center text-gray-500 mt-20">
+                        <p>Procesar pago directamente con POS o App</p>
+                    </div>
+
+                </div>
+
+                <!-- Footer Actions -->
+                <div class="p-6 bg-white border-t border-gray-200 flex gap-4">
+                    <button onclick="hideCheckoutModal()" class="w-1/3 py-4 rounded-xl font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors">
+                        Cancelar
+                    </button>
+                    <button id="btn-confirm-checkout" onclick="processPayment()" class="w-2/3 py-4 rounded-xl font-bold text-white bg-indigo-600 shadow-lg shadow-indigo-200 hover:bg-indigo-700 hover:shadow-indigo-300 transition-all active:scale-95">
+                        CONFIRMAR PAGO
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+<div id="cancel-modal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog"
+    aria-modal="true">
+    <!-- Backdrop -->
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
+
+    <div class="fixed inset-0 z-50 w-screen overflow-y-auto">
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0 sm:pb-[20vh]">
+            <div
+                class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+                <div class="bg-white px-4 pb-4 pt-5  sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div
+                            class="mx-auto flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <svg class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                            </svg>
+                        </div>
+                        <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                            <h3 class="text-xl font-bold leading-6 text-gray-900" id="modal-title">¿Cancelar Pedido?
+                            </h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500">                                    
+                                    <br><br>                                    
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3">
+                    <button type="button" id="btn-confirm-cancel" onclick="confirmCancel()"
+                        class="inline-flex w-full justify-center rounded-md bg-red-600 px-6 py-5 text-sm font-bold text-white shadow-sm hover:bg-red-500 sm:flex-1 active:scale-95 transition-transform">
+                        SI, CANCELAR PEDIDO
+                    </button>
+                    <button type="button" onclick="hideCancelModal()"
+                        class="mt-3 inline-flex w-full justify-center rounded-md bg-white px-8 py-5 text-sm font-bold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:flex-1 active:scale-95 transition-transform">
+                        NO
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div> 

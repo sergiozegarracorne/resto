@@ -6,6 +6,7 @@ use CodeIgniter\Database\Migration;
 
 class AddEstadoToCategorias extends Migration
 {
+    protected $DBGroup = 'default';
     public function up()
     {
         if (!$this->db->fieldExists('estado', 'categorias')) {

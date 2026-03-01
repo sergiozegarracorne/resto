@@ -6,6 +6,7 @@ use CodeIgniter\Database\Migration;
 
 class AddIdPadreToMesas extends Migration
 {
+    protected $DBGroup = 'default';
     public function up()
     {
         $this->forge->addColumn('mesas', [

@@ -6,6 +6,7 @@ use CodeIgniter\Database\Migration;
 
 class CreateCategorias extends Migration
 {
+    protected $DBGroup = 'default';
     public function up()
     {
         $this->forge->addField([

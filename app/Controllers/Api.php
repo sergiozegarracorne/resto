@@ -70,8 +70,8 @@ class Api extends BaseController
     // 2. Obtener Pedido Activo de una Mesa
     public function get_mesa_pedido($idMesa)
     {
-        $pedidoModel = new \App\Models\PedidoModel();
-        $detalleModel = new \App\Models\PedidoDetalleModel();
+        $pedidoModel = new \App\Models\PedidoOperacionesModel();
+        $detalleModel = new \App\Models\PedidoDetalleOperacionesModel();
 
         // Buscar pedido pendiente
         $pedido = $pedidoModel->where('id_mesa', $idMesa)
@@ -115,8 +115,8 @@ class Api extends BaseController
         $productos = $json->productos;
         $idUsuario = session('usuario_turno')['id'] ?? 1;
 
-        $pedidoModel = new \App\Models\PedidoModel();
-        $detalleModel = new \App\Models\PedidoDetalleModel();
+        $pedidoModel = new \App\Models\PedidoOperacionesModel();
+        $detalleModel = new \App\Models\PedidoDetalleOperacionesModel();
         $mesaModel = new \App\Models\MesaModel();
 
         $db = \Config\Database::connect();
@@ -263,5 +263,56 @@ class Api extends BaseController
         }
 
         return $this->respond(['success' => true, 'message' => 'Posiciones actualizadas']);
+    }
+
+    // 7. Cancelar Pedido (Eliminar y Liberar Mesa)
+    public function cancelar_pedido()
+    {
+        $json = $this->request->getJSON();
+
+        if (!isset($json->id_mesa)) {
+            return $this->failValidationError('Falta ID de mesa');
+        }
+
+        $idMesa = $json->id_mesa;
+        $pedidoModel = new \App\Models\PedidoOperacionesModel();
+        $detalleModel = new \App\Models\PedidoDetalleOperacionesModel();
+        $mesaModel = new \App\Models\MesaModel();
+
+        $db = \Config\Database::connect();
+        $db->transStart();
+
+        // 1. Buscar pedido pendiente
+        $pedido = $pedidoModel->where('id_mesa', $idMesa)->where('estado', 'pendiente')->first();
+
+        if ($pedido) {
+            // 2. Eliminar detalles
+            $detalleModel->where('id_pedido', $pedido['id'])->delete();
+            // 3. Eliminar pedido
+            $pedidoModel->delete($pedido['id']);
+        }
+
+        // 4. Liberar mesa (incluso si no había pedido activo, por seguridad force clear)
+        $mesaModel->update($idMesa, ['estado' => 'libre']);
+
+        $db->transComplete();
+
+        if ($db->transStatus() === false) {
+            return $this->failServerError('Error al cancelar pedido');
+        }
+
+        return $this->respond(['success' => true, 'message' => 'Pedido cancelado y mesa liberada']);
+    }
+
+     public function cobrar_pedido()
+    {
+        // $json = $this->request->getJSON();
+        // Procesar pago (guardar en BD venta, detalle, movimiento caja, etc)
+        // Por ahora mockeamos éxito
+        return $this->respond([
+            'success' => true, 
+            'message' => 'Venta registrada correctamente',
+            'ticket_id' => rand(1000, 9999)
+        ]);
     }
 }
