@@ -16,8 +16,9 @@
 
 CI_ENVIRONMENT = 'development'
 app.appTimezone = 'America/Lima'
-app.baseURL = 'http://resto.test/'
-
+app.baseURL = 'http://10.0.10.12:8081'
+#app.baseURL = 'http://resto.test' 
+#https://approximate-weapon-calculators-toward.trycloudflare.com
 #--------------------------------------------------------------------
 # APP
 #--------------------------------------------------------------------
@@ -39,6 +40,13 @@ database.default.password =
 database.default.DBDriver = MySQLi
 database.default.DBPrefix =
 database.default.port = 3306
+
+database.operaciones.hostname = localhost
+database.operaciones.database = resto_operaciones
+database.operaciones.username = root
+database.operaciones.password = 
+database.operaciones.DBDriver = MySQLi
+database.operaciones.port = 3306
 
 # If you use MySQLi as tests, first update the values of Config\Database::$tests.
 # database.tests.hostname = localhost

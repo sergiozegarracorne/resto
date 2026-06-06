@@ -21,4 +21,6 @@ $routes->post('/api/unir_mesas', 'Api::unir_mesas');
 $routes->post('/api/separar_mesas', 'Api::separar_mesas');
 $routes->post('/api/update_mesas_positions', 'Api::update_mesas_positions');
 $routes->post('/api/cancelar_pedido', 'Api::cancelar_pedido');
+$routes->post('/api/cobrar_pedido', 'Api::cobrar_pedido');
+
 $routes->get('/ingress/(:num)', 'Home::ingress/$1');

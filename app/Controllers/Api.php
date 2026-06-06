@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use CodeIgniter\API\ResponseTrait;
+use App\Models\VentaModel;
 
 class Api extends BaseController
 {
@@ -304,15 +305,27 @@ class Api extends BaseController
         return $this->respond(['success' => true, 'message' => 'Pedido cancelado y mesa liberada']);
     }
 
-     public function cobrar_pedido()
+    public function cobrar_pedido()
     {
-        // $json = $this->request->getJSON();
+         $json = $this->request->getJSON(true);
+         $modelVenta = new VentaModel();
+         $resultado = $modelVenta->guardarVenta($json);
+         
+        // echo "<pre>";
+//         print_r("DATOSS");
+//         print_r($json);
+//         echo "</pre>";exit;
+
         // Procesar pago (guardar en BD venta, detalle, movimiento caja, etc)
         // Por ahora mockeamos éxito
-        return $this->respond([
-            'success' => true, 
+         return $this->respond([
+            'success' => true,
             'message' => 'Venta registrada correctamente',
             'ticket_id' => rand(1000, 9999)
         ]);
     }
 }
+
+
+
+
