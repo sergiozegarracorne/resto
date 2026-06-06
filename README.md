@@ -1,69 +1,166 @@
-# CodeIgniter 4 Application Starter
+# Resto — Sistema POS para Restaurante
 
-## What is CodeIgniter?
+Sistema de punto de venta para restaurante construido con **CodeIgniter 4**. Permite gestionar mesas por pisos, tomar pedidos, cobrar y registrar ventas.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+---
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+## Stack
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+- **Backend:** PHP 8.1+ / CodeIgniter 4
+- **Frontend:** HTML + CSS + JS vanilla (sin framework)
+- **BD:** MySQL via MAMP (dos bases de datos separadas)
+- **Servidor local:** MAMP (`http://10.0.10.12:8081`)
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+---
 
-## Installation & updates
+## Bases de datos
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+El sistema usa dos bases de datos con responsabilidades bien separadas:
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+| Grupo CI4     | Base de datos       | Propósito                                                                 |
+|---------------|---------------------|---------------------------------------------------------------------------|
+| `default`     | `resto`             | Datos internos del sistema: catálogo, usuarios, almacén, configuración    |
+| `operaciones` | `resto_operaciones` | Todas las operaciones de negocio: ventas, deliveries, canjes, pedidos, etc. |
 
-## Setup
+> `resto` es la fuente de verdad del sistema (qué existe).
+> `resto_operaciones` es el registro de todo lo que ocurre (qué pasó).
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+El grupo se define por modelo con `$DBGroup`.
 
-## Important Change with index.php
+### Tablas — `resto`
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+| Tabla                  | Descripción                        |
+|------------------------|------------------------------------|
+| `categorias`           | Categorías de productos            |
+| `productos`            | Productos del menú                 |
+| `producto_componentes` | Componentes/ingredientes           |
+| `mesas`                | Mesas con posición X/Y y estado    |
+| `pisos`                | Pisos del local                    |
+| `usuarios`             | Vendedores/meseros                 |
+| `insumos`              | Ingredientes del almacén con stock |
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+### Tablas — `resto_operaciones`
 
-**Please** read the user guide for a better explanation of how CI4 works!
+| Tabla                | PK           | Descripción                             |
+|----------------------|--------------|-----------------------------------------|
+| `pedidos`            | `id`         | Cabecera de pedido por mesa             |
+| `pedido_detalles`    | `id`         | Ítems de cada pedido                    |
+| `rest_venta`         | `id_venta`   | Cabecera de venta cobrada               |
+| `rest_venta_detalle` | `id_detalle` | Ítems de cada venta                     |
+| `compras`            | `id`         | Cabecera de compra de insumos           |
+| `compra_detalles`    | `id`         | Ítems de cada compra                    |
 
-## Repository Management
+> `rest_venta.fecha_registro` usa `DEFAULT CURRENT_TIMESTAMP` — no se envía en el insert.
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+---
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+## Modelos
 
-## Server Requirements
+| Modelo                          | DBGroup       | Tabla                  |
+|---------------------------------|---------------|------------------------|
+| `CategoriaModel`                | `default`     | `categorias`           |
+| `ProductoModel`                 | `default`     | `productos`            |
+| `ProductoComponenteModel`       | `default`     | `producto_componentes` |
+| `MesaModel`                     | `default`     | `mesas`                |
+| `PisoModel`                     | `default`     | `pisos`                |
+| `UsuarioModel`                  | `default`     | `usuarios`             |
+| `PedidoOperacionesModel`        | `operaciones` | `pedidos`              |
+| `PedidoDetalleOperacionesModel` | `operaciones` | `pedido_detalles`      |
+| `VentaModel`                    | `operaciones` | `rest_venta`           |
+| `VentaDetalleModel`             | `operaciones` | `rest_venta_detalle`   |
+| `InsumoModel`                   | `default`     | `insumos`              |
+| `CompraModel`                   | `operaciones` | `compras`              |
+| `CompraDetalleModel`            | `operaciones` | `compra_detalles`      |
 
-PHP version 8.1 or higher is required, with the following extensions installed:
+---
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+## Controladores API
 
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - If you are still using PHP 7.4 or 8.0, you should upgrade immediately.
-> - The end of life date for PHP 8.1 will be December 31, 2025.
+Los endpoints viven en `app/Controllers/Api/` — un archivo por módulo.
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+| Archivo          | Módulo    | Responsabilidad                        |
+|------------------|-----------|----------------------------------------|
+| `AuthApi.php`    | Auth      | Login de vendedores, timestamp         |
+| `MesasApi.php`   | Mesas     | Pisos, unir/separar, posiciones        |
+| `PedidosApi.php` | Pedidos   | Crear, actualizar y cancelar pedidos   |
+| `VentasApi.php`  | Ventas    | Registrar cobro de una venta           |
+| `AlmacenApi.php` | Almacén   | Insumos, stock, compras                |
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
-"# resto" 
+> Todos extienden `BaseApiController` (usa `ResponseTrait` de CI4).
+
+## API Endpoints
+
+Las URLs del JS **no cambiaron** — solo cambió dónde vive el código.
+
+| Método | Ruta                          | Controlador      | Descripción                                            |
+|--------|-------------------------------|------------------|--------------------------------------------------------|
+| GET    | `/api/time`                   | AuthApi          | Timestamp del servidor                                 |
+| POST   | `/api/verificar_vendedor`     | AuthApi          | Login del vendedor por id + clave (sesión)             |
+| GET    | `/api/get_pisos_mesas`        | MesasApi         | Pisos con sus mesas y estado                           |
+| POST   | `/api/unir_mesas`             | MesasApi         | Unir mesas secundarias a una principal                 |
+| POST   | `/api/separar_mesas`          | MesasApi         | Desasociar mesas unidas                                |
+| POST   | `/api/update_mesas_positions` | MesasApi         | Guardar posiciones X/Y de mesas en el panel            |
+| GET    | `/api/get_mesa_pedido/:id`    | PedidosApi       | Pedido activo (pendiente) de una mesa                  |
+| POST   | `/api/save_pedido`            | PedidosApi       | Crear o actualizar pedido de una mesa                  |
+| POST   | `/api/cancelar_pedido`        | PedidosApi       | Eliminar pedido y liberar mesa                         |
+| POST   | `/api/cobrar_pedido`          | VentasApi        | Registrar venta en `rest_venta` + `rest_venta_detalle` |
+| GET    | `/api/get_insumos`            | AlmacenApi       | Lista de insumos con stock actual                      |
+| POST   | `/api/save_insumo`            | AlmacenApi       | Crear o editar un insumo del almacén                   |
+| POST   | `/api/save_compra`            | AlmacenApi       | Registrar compra y sumar stock a los insumos           |
+
+### Payload `cobrar_pedido`
+
+```json
+{
+  "id_mesa": 3,
+  "metodo": "efectivo",
+  "total": 55.00,
+  "recibido": 60.00,
+  "items": [
+    { "id": 7, "nombre": "Pizza Americana", "cantidad": 1, "precio": 45.00 },
+    { "id": 2, "nombre": "Chicha Morada",   "cantidad": 2, "precio": 5.00 }
+  ]
+}
+```
+
+---
+
+## Vistas
+
+| Ruta           | Controlador      | Descripción                          |
+|----------------|------------------|--------------------------------------|
+| `/`            | `Home::index`    | Página de inicio / login             |
+| `/venta`       | `Venta::index`   | POS principal (mesas + pedido)       |
+| `/venta/:id`   | `Venta::index`   | POS con mesa preseleccionada         |
+| `/panel`       | `Panel::index`   | Panel admin de mesas (drag & drop)   |
+| `/ingress/:id`      | `Home::ingress`    | Entrada directa por vendedor         |
+| `/almacen/compras`  | `Almacen::compras` | Registrar una compra de insumos      |
+| `/almacen/insumos`  | `Almacen::insumos` | Ver y editar stock del almacén       |
+
+---
+
+## Configuración local
+
+1. Copiar `_env` a `.env`
+2. Ajustar `app.baseURL` y credenciales de BD si es necesario
+3. Crear las dos BDs: `resto` y `resto_operaciones`
+4. Importar `SQL/resto.sql` y `SQL/resto_operaciones.sql`
+5. Apuntar MAMP a la carpeta `/public`
+
+---
+
+## Estado actual (WIP)
+
+- [x] Gestión de mesas por pisos (drag & drop de posiciones)
+- [x] Login de vendedores por turno (sesión)
+- [x] Tomar y actualizar pedidos por mesa
+- [x] Unir / separar mesas
+- [x] Cancelar pedido y liberar mesa
+- [x] Endpoint `cobrar_pedido` — guarda venta en `rest_venta` + `rest_venta_detalle`
+- [x] Módulo almacén: insumos con stock, alertas de stock bajo
+- [x] Registro de compras → actualiza stock automáticamente
+- [ ] Liberar mesa al cobrar (pendiente en `cobrar_pedido`)
+- [ ] Marcar pedido como pagado al cobrar
+- [ ] Vista de ticket post-cobro
+- [ ] Vincular insumos a productos (descuento automático de stock al vender)
+- [ ] Cierre de caja / reportes

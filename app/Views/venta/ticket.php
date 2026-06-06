@@ -50,12 +50,17 @@
 </div>
 
 <!-- Totales y Acciones -->
+<?php
+$_rolActual  = session('usuario_turno')['rol'] ?? 'vendedor';
+$_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
+?>
 <div class="p-4 bg-gray-50 border-t border-gray-200">
     <div class="flex justify-between items-center mb-4 text-xl font-bold text-gray-800">
         <span>Total</span>
         <span id="total-ticket">S/ 0.00</span>
     </div>
 
+    <?php if ($_puedeAdmin): ?>
     <div class="grid grid-cols-2 gap-2">
         <button onclick="showCancelModal()"
             class="bg-red-50 text-red-600 font-bold py-3 rounded-lg hover:bg-red-100 transition-colors active:scale-95">
@@ -66,6 +71,13 @@
             Cobrar
         </button>
     </div>
+    <?php else: ?>
+    <div class="flex flex-col items-center gap-1 py-3 px-4 bg-white rounded-lg border border-gray-100 text-center">
+        <span class="text-lg">💁</span>
+        <p class="text-xs font-semibold text-gray-500">Pedido guardado automáticamente</p>
+        <p class="text-[10px] text-gray-400">El cobro lo gestiona el administrador</p>
+    </div>
+    <?php endif; ?>
 </div>
 
 <script>
@@ -455,6 +467,7 @@
 
 </script>
 
+<?php if ($_puedeAdmin): ?>
 <!-- Checkout Modal -->
 <div id="checkout-modal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="fixed inset-0 bg-gray-900 bg-opacity-90 backdrop-blur-sm transition-opacity"></div>
@@ -600,4 +613,5 @@
             </div>
         </div>
     </div>
-</div> 
+</div>
+<?php endif; ?>

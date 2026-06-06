@@ -20,14 +20,14 @@ Panel Central - Resta
     <div class="grid grid-cols-4  lg:grid-cols-6 gap-6 h-full content-start">
 
         <!-- TARJETAS DE GESTIÓN (Mantenimientos) -->
-        <button
+        <a href="<?= base_url('productos') ?>"
             class="bg-white border-b-4 border-blue-500 rounded-2xl shadow-md active:scale-95 active:bg-blue-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
             <div
                 class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
                 🍎
             </div>
             <span class="text-lg font-bold text-gray-700">Productos</span>
-        </button>
+        </a>
 
         <button
             class="bg-white border-b-4 border-amber-500 rounded-2xl shadow-md active:scale-95 active:bg-amber-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
@@ -66,14 +66,14 @@ Panel Central - Resta
             <span class="text-lg font-bold text-gray-700">Ventas</span>
         </button>
 
-        <button
+        <a href="<?= base_url('usuarios') ?>"
             class="bg-white border-b-4 border-purple-500 rounded-2xl shadow-md active:scale-95 active:bg-purple-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
             <div
                 class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
                 👥
             </div>
             <span class="text-lg font-bold text-gray-700">Usuarios</span>
-        </button>
+        </a>
 
 
         <!-- BOTÓN VOLVER -->

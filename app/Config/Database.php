@@ -58,10 +58,10 @@ class Database extends Config
      */
     public array $operaciones = [
         'DSN' => '',
-        'hostname' => 'localhost',
-        'username' => '',
+        'hostname' => '127.0.0.1',
+        'username' => 'root',
         'password' => '',
-        'database' => '',
+        'database' => 'resto_operaciones',
         'DBDriver' => 'MySQLi',
         'DBPrefix' => '',
         'pConnect' => false,
