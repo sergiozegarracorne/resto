@@ -18,6 +18,7 @@ $routes->get('/almacen/compras', 'Almacen::compras');
 $routes->get('/almacen/insumos', 'Almacen::insumos');
 
 $routes->get('/productos', 'Productos::index');
+$routes->get('/combos', 'Combos::index');
 $routes->get('/usuarios',  'Usuarios::index');
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -60,4 +61,15 @@ $routes->group('api', function ($routes) {
     $routes->get('usuarios/get_all',        'Api\UsuariosApi::get_all');
     $routes->post('usuarios/save',          'Api\UsuariosApi::save');
     $routes->post('usuarios/delete',        'Api\UsuariosApi::delete');
+    
+    // Combos
+    $routes->get('combos/get_all',          'Api\CombosApi::get_all');
+    $routes->post('combos/guardarCombo',    'Api\CombosApi::guardarCombo');
+    $routes->post('combos/updateCombo',    'Api\CombosApi::updateCombo');
+    $routes->post('combos/delete_combos/(:num)',    'Api\CombosApi::delete_combos/$1');
+
+    
 });
+
+
+

@@ -1,0 +1,17 @@
+{
+  "name": "impresoras-virtuales",
+  "version": "1.0.0",
+  "description": "Emulador de impresoras de red RAW para sistema de restaurant",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev":   "node server.js",
+    "prod":  "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.17.0"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

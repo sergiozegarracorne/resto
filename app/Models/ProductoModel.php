@@ -33,4 +33,48 @@ class ProductoModel extends Model
                     ->orderBy('fecha_vencimiento', 'ASC')
                     ->findAll();
     }
+ 
+ ## GUARDAR COMBO
+ 
+ public function guardarCombo(array $data, array $productos): int|false
+    {
+        $db = $this->db;
+    
+        $db->transStart();
+    
+        // Guardar producto (combo)
+        $this->insert([
+            'categoria_id' => $data['categoria_id'],
+            'nombre'       => $data['nombre'],
+            'codigo_rapido'=> $data['codigo_rapido'],
+            'descripcion'  => $data['descripcion'],
+            'precio'       => $data['precio'],
+            'es_combo'     => 1,
+            'activo'       => 1
+        ]);
+    
+        $idCombo = $this->getInsertID();
+    
+        $detalleModel = new ProductoComboDetalleModel();
+    
+        foreach ($productos as $prod) {
+    
+            $detalleModel->insert([
+                'id_producto_combo' => $idCombo,
+                'id_producto'       => $prod->id,
+                'cantidad'          => $prod->cantidad,
+                'precio'            => $prod->precio
+            ]);
+        }
+    
+        $db->transComplete();
+    
+        if (!$db->transStatus()) {
+            return false;
+        }
+    
+        return $idCombo;
+    } 
+    
+   
 }
