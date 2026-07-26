@@ -11,7 +11,21 @@ class MesasApi extends BaseApiController
     {
         $mesaModel     = new MesaModel();
         $mesasAbiertas = $mesaModel->where('estado', 'ocupada')->countAllResults();
-        return $this->respond(['success' => true, 'mesas_abiertas' => $mesasAbiertas]);
+
+        $porUsuario = \Config\Database::connect('operaciones')
+            ->query("
+                SELECT id_usuario, COUNT(*) AS mesas_abiertas
+                FROM rest_pedido
+                WHERE estado = 'pendiente'
+                GROUP BY id_usuario
+            ")
+            ->getResultArray();
+
+        return $this->respond([
+            'success'        => true,
+            'mesas_abiertas' => $mesasAbiertas,
+            'por_usuario'    => $porUsuario,
+        ]);
     }
 
     public function get_pisos_mesas()

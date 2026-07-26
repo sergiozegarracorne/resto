@@ -20,18 +20,32 @@ if (!function_exists('boton_vendedor')) {
         // 2. Escapamos " para HTML
         $dataSafe = htmlspecialchars($jsSafe, ENT_QUOTES, 'UTF-8');
 
+        // Extraer id_usuario del JSON para el badge
+        $idUsuario = '';
+        if ($data) {
+            $parsed = json_decode($data, true);
+            $idUsuario = $parsed['id_usuario'] ?? '';
+        }
+
         // Acción por defecto abre el teclado
         $accion = $accion ?: "abrirTeclado('" . $nombreEsc . "','" . $dataSafe . "')";
 
         return <<<HTML
-        <button 
-            onclick="{$accion}" 
-            class="group aspect-square flex flex-col items-center justify-center bg-white border border-gray-300 rounded-sm shadow-sm hover:shadow-md hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300 w-full h-full p-4"
+        <button
+            onclick="{$accion}"
+            data-uid="{$idUsuario}"
+            class="relative group aspect-square flex flex-col items-center justify-center bg-white border border-gray-300 rounded-sm shadow-sm hover:shadow-md hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-300 w-full h-full p-4"
         >
+            <span data-badge-uid="{$idUsuario}"
+                  style="display:none;position:absolute;top:7px;right:7px;z-index:10;
+                         min-width:22px;height:22px;padding:0 4px;background:#ef4444;color:white;
+                         font-size:11px;font-weight:900;border-radius:999px;
+                         align-items:center;justify-content:center;
+                         box-shadow:0 2px 6px rgba(239,68,68,.5)"></span>
             <div class="w-1/2 h-1/3 mb-3 relative">
-                <img 
-                    src="{$imagen}" 
-                    alt="{$nombreEsc}" 
+                <img
+                    src="{$imagen}"
+                    alt="{$nombreEsc}"
                     class="w-full h-full object-contain drop-shadow-sm group-hover:scale-110 transition-transform duration-300"
                 />
             </div>

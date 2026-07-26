@@ -52,6 +52,24 @@
     <!-- Teclado Virtual Global -->
     <?= teclado_numerico() ?>
 
+    <script>
+    (async function cargarBadgesMesas() {
+        try {
+            const res  = await fetch('/api/mesas/resumen_activo');
+            const data = await res.json();
+            (data.por_usuario || []).forEach(function(u) {
+                const n = parseInt(u.mesas_abiertas) || 0;
+                if (n < 1) return;
+                const badge = document.querySelector('[data-badge-uid="' + u.id_usuario + '"]');
+                if (badge) {
+                    badge.textContent  = n;
+                    badge.style.display = 'flex';
+                }
+            });
+        } catch (e) { /* silencioso */ }
+    })();
+    </script>
+
 </body>
 
 </html>
