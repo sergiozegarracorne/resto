@@ -89,9 +89,14 @@ Panel Central - Resta
         <?php endif; ?>
 
 
-        <!-- BOTÓN VOLVER -->
-        <a href="<?= base_url('venta') ?>"
-            class="bg-slate-700 border-b-4 border-slate-900 rounded-2xl shadow-md active:scale-95 active:bg-slate-600 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
+        <!-- BOTÓN VOLVER + badge mesas abiertas -->
+        <a href="<?= base_url('venta') ?>" id="card-volver"
+            class="relative bg-slate-700 border-b-4 border-slate-900 rounded-2xl shadow-md active:scale-95 active:bg-slate-600 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
+            <!-- badge: se inyecta por JS si hay mesas ocupadas -->
+            <span id="badge-mesas" style="display:none"
+                class="absolute -top-2.5 -right-2.5 min-w-[28px] h-7 px-1.5
+                bg-red-500 text-white text-xs font-black rounded-full items-center justify-center
+                shadow-lg shadow-red-500/40 border-2 border-white z-10 leading-none"></span>
             <div
                 class="w-16 h-16 bg-slate-600 text-white rounded-full flex items-center justify-center text-3xl group-hover:-translate-x-1 transition-transform">
                 🔙
@@ -101,4 +106,20 @@ Panel Central - Resta
 
     </div>
 </main>
+
+<script>
+(async function() {
+    try {
+        const res  = await fetch('<?= base_url('api/mesas/resumen_activo') ?>');
+        const data = await res.json();
+        const n    = data.mesas_abiertas || 0;
+        if (n > 0) {
+            const badge = document.getElementById('badge-mesas');
+            badge.textContent = n;
+            badge.style.display = 'flex';
+        }
+    } catch (e) { /* silencioso */ }
+})();
+</script>
+
 <?= $this->endSection() ?>

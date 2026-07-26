@@ -7,6 +7,13 @@ use App\Models\MesaModel;
 
 class MesasApi extends BaseApiController
 {
+    public function resumen_activo()
+    {
+        $mesaModel     = new MesaModel();
+        $mesasAbiertas = $mesaModel->where('estado', 'ocupada')->countAllResults();
+        return $this->respond(['success' => true, 'mesas_abiertas' => $mesasAbiertas]);
+    }
+
     public function get_pisos_mesas()
     {
         $pisoModel = new PisoModel();

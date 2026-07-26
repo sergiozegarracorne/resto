@@ -32,6 +32,7 @@ $routes->group('api', function ($routes) {
 
     // Mesas
     $routes->get('get_pisos_mesas',            'Api\MesasApi::get_pisos_mesas');
+    $routes->get('mesas/resumen_activo',       'Api\MesasApi::resumen_activo');
     $routes->post('unir_mesas',                'Api\MesasApi::unir_mesas');
     $routes->post('separar_mesas',             'Api\MesasApi::separar_mesas');
     $routes->post('update_mesas_positions',    'Api\MesasApi::update_mesas_positions');
