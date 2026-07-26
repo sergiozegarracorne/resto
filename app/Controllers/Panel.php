@@ -10,5 +10,5 @@ class Panel extends BaseController
         // Esto hace que la respuesta sea instantánea desde el disco
         $this->cachePage(3600);
         return view('panel/index');
-    }
+    } 
 }

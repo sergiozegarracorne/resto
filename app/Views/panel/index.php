@@ -75,6 +75,15 @@ Panel Central - Resta
             <span class="text-lg font-bold text-gray-700">Usuarios</span>
         </a>
 
+        <a href="<?= base_url('impresoras') ?>"
+            class="bg-white border-b-4 border-gray-500 rounded-2xl shadow-md active:scale-95 active:bg-gray-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
+            <div
+                class="w-16 h-16 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                🖨️
+            </div>
+            <span class="text-lg font-bold text-gray-700">Impresoras</span>
+        </a>
+
 
         <!-- BOTÓN VOLVER -->
         <a href="<?= base_url('venta') ?>"

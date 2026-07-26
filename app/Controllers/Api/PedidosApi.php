@@ -5,6 +5,7 @@ namespace App\Controllers\Api;
 use App\Models\PedidoOperacionesModel;
 use App\Models\PedidoDetalleOperacionesModel;
 use App\Models\MesaModel;
+use App\Libraries\ImpresoraService;
 
 class PedidosApi extends BaseApiController
 {
@@ -51,8 +52,9 @@ class PedidosApi extends BaseApiController
         $db = \Config\Database::connect('operaciones');
         $db->transStart();
 
-        $pedido   = $pedidoModel->where('id_mesa', $idMesa)->where('estado', 'pendiente')->first();
-        $idPedido = null;
+        $pedido    = $pedidoModel->where('id_mesa', $idMesa)->where('estado', 'pendiente')->first();
+        $idPedido  = null;
+        $esPedidoNuevo = !$pedido; // solo enviamos a cocina en pedidos nuevos
 
         if (!$pedido) {
             $idPedido = $pedidoModel->insert([
@@ -67,7 +69,8 @@ class PedidosApi extends BaseApiController
             $detalleModel->where('id_pedido', $idPedido)->delete();
         }
 
-        $total = 0;
+        $total     = 0;
+        $itemsPrint = [];
         foreach ($productos as $prod) {
             $prod = (object) $prod;
             if (!isset($prod->id)) continue;
@@ -82,6 +85,12 @@ class PedidosApi extends BaseApiController
                 'cantidad'        => $prod->cantidad,
                 'precio'          => $prod->precio,
             ]);
+
+            $itemsPrint[] = [
+                'id_producto'     => $prod->id,
+                'nombre_producto' => $prod->nombre,
+                'cantidad'        => $prod->cantidad,
+            ];
         }
 
         $pedidoModel->update($idPedido, ['total' => $total]);
@@ -90,6 +99,18 @@ class PedidosApi extends BaseApiController
 
         if ($db->transStatus() === false) {
             return $this->failServerError('Error al guardar el pedido');
+        }
+
+        // Enviar a impresoras de cocina/bar/horno (solo pedidos nuevos, sin bloquear la respuesta)
+        if ($esPedidoNuevo && !empty($itemsPrint)) {
+            try {
+                (new ImpresoraService())->routearPedido(
+                    ['id' => $idPedido, 'mesa' => $idMesa],
+                    $itemsPrint
+                );
+            } catch (\Throwable $e) {
+                log_message('error', '[PedidosApi] Error enviando a impresoras: ' . $e->getMessage());
+            }
         }
 
         return $this->respond(['success' => true, 'id_pedido' => $idPedido]);

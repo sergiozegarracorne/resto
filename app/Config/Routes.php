@@ -18,7 +18,8 @@ $routes->get('/almacen/compras', 'Almacen::compras');
 $routes->get('/almacen/insumos', 'Almacen::insumos');
 
 $routes->get('/productos', 'Productos::index');
-$routes->get('/combos', 'Combos::index');
+$routes->get('/combos',      'Combos::index');
+$routes->get('/impresoras',  'Impresoras::index');
 $routes->get('/usuarios',  'Usuarios::index');
 
 // ─── API ──────────────────────────────────────────────────────────────────────
@@ -65,8 +66,17 @@ $routes->group('api', function ($routes) {
     // Combos
     $routes->get('combos/get_all',          'Api\CombosApi::get_all');
     $routes->post('combos/guardarCombo',    'Api\CombosApi::guardarCombo');
-    $routes->post('combos/updateCombo',    'Api\CombosApi::updateCombo');
-    $routes->post('combos/delete_combos/(:num)',    'Api\CombosApi::delete_combos/$1');
+    $routes->post('combos/updateCombo',     'Api\CombosApi::updateCombo');
+    $routes->post('combos/delete_combos/(:num)', 'Api\CombosApi::delete_combos/$1');
+
+    // Impresoras
+    $routes->get('impresoras/get_all',       'Api\ImpresorasApi::get_all');
+    $routes->post('impresoras/save',         'Api\ImpresorasApi::save');
+    $routes->post('impresoras/delete/(:num)','Api\ImpresorasApi::delete/$1');
+    $routes->post('impresoras/test/(:num)',  'Api\ImpresorasApi::test_print/$1');
+    $routes->get('impresoras/scan_red',      'Api\ImpresorasApi::scan_red');
+    $routes->get('impresoras/get_routing',   'Api\ImpresorasApi::get_routing');
+    $routes->post('impresoras/save_routing', 'Api\ImpresorasApi::save_routing');
 
     
 });

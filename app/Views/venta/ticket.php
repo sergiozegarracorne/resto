@@ -11,7 +11,16 @@
             <span class="text-lg">💁</span>
             <span class="font-bold"><?= session('usuario_turno')['nombre'] ?? 'Sin Asignar' ?></span>
         </div>
-        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium text-[10px]">En Proceso</span>
+        <div class="flex items-center gap-1">
+            <?php if (in_array(session('usuario_turno')['rol'] ?? '', ['admin','sudo','supervisor'], true)): ?>
+            <a href="<?= base_url('panel') ?>"
+               title="Panel de Control"
+               class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-indigo-100 hover:text-indigo-700 transition-colors text-sm">
+                ⚙️
+            </a>
+            <?php endif; ?>
+            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium text-[10px]">En Proceso</span>
+        </div>
     </div>
 
     <!-- Fila 2.5: Mesa Activa -->
@@ -72,11 +81,10 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
         </button>
     </div>
     <?php else: ?>
-    <div class="flex flex-col items-center gap-1 py-3 px-4 bg-white rounded-lg border border-gray-100 text-center">
-        <span class="text-lg">💁</span>
-        <p class="text-xs font-semibold text-gray-500">Pedido guardado automáticamente</p>
-        <p class="text-[10px] text-gray-400">El cobro lo gestiona el administrador</p>
-    </div>
+    <button onclick="showComandaModal()"
+        class="w-full bg-emerald-600 text-white font-bold py-3 rounded-lg hover:bg-emerald-700 shadow-lg hover:shadow-emerald-500/30 transition-all active:scale-95 text-base">
+        🍽️ Confirmar Comanda
+    </button>
     <?php endif; ?>
 </div>
 
@@ -85,6 +93,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
     let carrito = [];
     let currentMesa = null;
     let saveTimeout = null;
+    const esVendedor = <?= ($_rolActual === 'vendedor') ? 'true' : 'false' ?>;
 
     // Interface used by Mesas Overlay
     window.app = {
@@ -137,6 +146,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
 
     // Función Global: Agregar Producto (Modificada con AutoSave)
     window.agregarProducto = function (id, nombre, precio) {
+        const esPrimerProducto = carrito.length === 0;
         const existente = carrito.find(item => item.id == id);
 
         if (existente) {
@@ -153,10 +163,16 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
 
         renderizarTicket();
         autoSave();
+
+        // Para mozo: al primer producto sin mesa, abrir selector de mesas automáticamente
+        if (esVendedor && esPrimerProducto && !currentMesa && window.toggleMesasOverlay) {
+            window.toggleMesasOverlay();
+        }
     };
 
     function autoSave() {
         if (!currentMesa) return;
+        if (esVendedor) return; // vendedor usa confirmación explícita con "Confirmar Comanda"
 
         // Show saving indicator?
         const statusEl = document.getElementById('mesa-estado-display');
@@ -239,6 +255,75 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
             autoSave();
         }
     };
+
+    // --- Lógica de Comanda (vendedor) ---
+
+    window.showComandaModal = function() {
+        if (carrito.length === 0) {
+            alert('Agregá productos a la comanda primero.');
+            return;
+        }
+        if (!currentMesa) {
+            alert('Seleccioná una mesa antes de confirmar la comanda.');
+            return;
+        }
+        document.getElementById('comanda-mesa-nombre').innerText = currentMesa.nombre;
+        document.getElementById('comanda-items-list').innerHTML = carrito.map(item => `
+            <div class="flex justify-between py-2 border-b border-gray-100 last:border-0 text-sm">
+                <span><span class="font-bold text-emerald-700">${item.cantidad}×</span> ${item.nombre}</span>
+                <span class="text-gray-500">S/ ${(item.precio * item.cantidad).toFixed(2)}</span>
+            </div>
+        `).join('');
+        document.getElementById('comanda-modal').classList.remove('hidden');
+    }
+
+    window.hideComandaModal = function() {
+        document.getElementById('comanda-modal').classList.add('hidden');
+    }
+
+    window.confirmarComanda = async function() {
+        const btn = document.getElementById('btn-confirm-comanda');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="animate-spin inline-block mr-1">↻</span> Enviando...';
+
+        try {
+            const res = await fetch('<?= base_url('api/save_pedido') ?>', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_mesa: currentMesa.id, productos: carrito })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                hideComandaModal();
+                if (currentMesa) {
+                    currentMesa.estado = 'ocupada';
+                    updateMesaUI();
+                    document.getElementById('mesa-estado-display').innerText = 'OCUPADA';
+                }
+                mostrarToastComanda();
+            } else {
+                alert('Error: ' + (data.messages?.error || data.message || 'Error desconocido'));
+            }
+        } catch(e) {
+            console.error(e);
+            alert('Error de conexión');
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '✓ Enviar a Cocina';
+    }
+
+    function mostrarToastComanda() {
+        const toast = document.getElementById('toast-comanda');
+        if (!toast) return;
+        toast.classList.remove('hidden', 'opacity-0');
+        toast.classList.add('opacity-100');
+        setTimeout(() => {
+            toast.classList.add('opacity-0');
+            setTimeout(() => toast.classList.add('hidden'), 300);
+        }, 3000);
+    }
 
     // Estilo para animación simple
     const style = document.createElement('style');
@@ -467,9 +552,50 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
 
 </script>
 
+<?php if (!$_puedeAdmin): ?>
+<!-- Modal Confirmar Comanda (solo vendedor/mozo) -->
+<div id="comanda-modal" class="fixed inset-0 z-100 hidden" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-900 bg-opacity-75 backdrop-blur-sm"></div>
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <!-- Header -->
+            <div class="bg-emerald-600 p-5 text-white">
+                <div class="flex items-center gap-3">
+                    <span class="text-4xl">🍽️</span>
+                    <div>
+                        <h2 class="text-xl font-bold">Confirmar Comanda</h2>
+                        <p class="text-emerald-100 text-sm mt-0.5">
+                            Mesa: <span id="comanda-mesa-nombre" class="font-bold text-white"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <!-- Items -->
+            <div class="p-4 max-h-60 overflow-y-auto custom-scrollbar" id="comanda-items-list"></div>
+            <!-- Footer -->
+            <div class="p-4 bg-gray-50 border-t border-gray-100 flex gap-3">
+                <button onclick="hideComandaModal()"
+                    class="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-200 hover:bg-gray-300 transition-colors active:scale-95">
+                    Cancelar
+                </button>
+                <button id="btn-confirm-comanda" onclick="confirmarComanda()"
+                    class="flex-1 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg transition-all active:scale-95">
+                    ✓ Enviar a Cocina
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Toast confirmación -->
+<div id="toast-comanda"
+    class="hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-200 bg-emerald-600 text-white px-6 py-3 rounded-full shadow-xl font-bold text-sm transition-opacity duration-300 pointer-events-none">
+    ✓ Comanda enviada a cocina
+</div>
+<?php endif; ?>
+
 <?php if ($_puedeAdmin): ?>
 <!-- Checkout Modal -->
-<div id="checkout-modal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+<div id="checkout-modal" class="fixed inset-0 z-100 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
     <div class="fixed inset-0 bg-gray-900 bg-opacity-90 backdrop-blur-sm transition-opacity"></div>
 
     <div class="fixed inset-0 z-50 w-screen overflow-hidden flex items-center justify-center p-4">
@@ -570,7 +696,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
         </div>
     </div>
 </div>
-<div id="cancel-modal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog"
+<div id="cancel-modal" class="fixed inset-0 z-100 hidden" aria-labelledby="modal-title" role="dialog"
     aria-modal="true">
     <!-- Backdrop -->
     <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"></div>
@@ -582,7 +708,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
                 <div class="bg-white px-4 pb-4 pt-5  sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
                         <div
-                            class="mx-auto flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            class="mx-auto flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                             <svg class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
                                 stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round"
