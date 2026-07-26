@@ -10,8 +10,8 @@ Panel Central - Resta
     <h1 class="text-xl font-bold flex items-center gap-2">
         <span class="text-2xl">⚙️</span> Panel de Control
     </h1>
-    <div class="text-sm opacity-75">
-        Admin
+    <div class="text-sm opacity-75 capitalize">
+        <?= esc($rol) ?>
     </div>
 </header>
 
@@ -48,6 +48,7 @@ Panel Central - Resta
         </a>
 
         <!-- TARJETAS DE OPERACIÓN (Diario) -->
+        <?php if (in_array($rol, ['admin', 'sudo'], true)): ?>
         <a href="<?= base_url('caja') ?>"
             class="bg-white border-b-4 border-emerald-500 rounded-2xl shadow-md active:scale-95 active:bg-emerald-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
             <div
@@ -56,6 +57,7 @@ Panel Central - Resta
             </div>
             <span class="text-lg font-bold text-gray-700">Caja / Cuadre</span>
         </a>
+        <?php endif; ?>
 
         <button
             class="bg-white border-b-4 border-indigo-500 rounded-2xl shadow-md active:scale-95 active:bg-indigo-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
@@ -66,6 +68,7 @@ Panel Central - Resta
             <span class="text-lg font-bold text-gray-700">Ventas</span>
         </button>
 
+        <?php if (in_array($rol, ['admin', 'sudo'], true)): ?>
         <a href="<?= base_url('usuarios') ?>"
             class="bg-white border-b-4 border-purple-500 rounded-2xl shadow-md active:scale-95 active:bg-purple-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
             <div
@@ -83,6 +86,7 @@ Panel Central - Resta
             </div>
             <span class="text-lg font-bold text-gray-700">Impresoras</span>
         </a>
+        <?php endif; ?>
 
 
         <!-- BOTÓN VOLVER -->

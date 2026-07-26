@@ -8,7 +8,8 @@ class Panel extends BaseController
     {
         // Cachear la vista del Panel por 1 hora (3600 segundos)
         // Esto hace que la respuesta sea instantánea desde el disco
-        $this->cachePage(3600);
-        return view('panel/index');
+        $turno = session('usuario_turno');
+        $rol   = $turno['rol'] ?? 'vendedor';
+        return view('panel/index', ['rol' => $rol]);
     } 
 }
