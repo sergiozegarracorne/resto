@@ -8,6 +8,9 @@ class UsuariosApi extends BaseApiController
 {
     public function get_all()
     {
+        if (!$this->puedeGestionar()) {
+            return $this->failForbidden('Acceso restringido');
+        }
         try {
             $users = (new UsuarioModel())
                 ->select('id_usuario, codigo, nombre, rol, imagen, estado, created_at')
@@ -27,6 +30,10 @@ class UsuariosApi extends BaseApiController
 
     public function save()
     {
+        if (!$this->puedeGestionar()) {
+            return $this->failForbidden('Acceso restringido');
+        }
+
         $json = $this->request->getJSON(true);
 
         if (empty($json['nombre'])) {
@@ -83,6 +90,10 @@ class UsuariosApi extends BaseApiController
 
     public function delete()
     {
+        if (!$this->puedeGestionar()) {
+            return $this->failForbidden('Acceso restringido');
+        }
+
         $json = $this->request->getJSON(true);
 
         if (empty($json['id'])) {

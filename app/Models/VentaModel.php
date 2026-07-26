@@ -10,7 +10,7 @@ class VentaModel extends Model
     protected $table         = 'rest_venta';
     protected $primaryKey    = 'id_venta';
     protected $allowedFields = [
-        'id_mesa', 'metodo_pago', 'total', 'recibido', 'fecha_registro',
+        'id_mesa', 'id_usuario', 'nombre_cajero', 'metodo_pago', 'total', 'recibido', 'fecha_registro',
         'igv_porcentaje', 'total_neto', 'total_igv', 'total_icbr',
     ];
 
@@ -78,6 +78,8 @@ class VentaModel extends Model
 
         $this->insert([
             'id_mesa'        => $data['id_mesa'],
+            'id_usuario'     => $data['id_usuario']    ?? null,
+            'nombre_cajero'  => $data['nombre_cajero'] ?? null,
             'metodo_pago'    => $data['metodo'],
             'total'          => $data['total'],
             'recibido'       => $data['recibido'],

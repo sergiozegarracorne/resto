@@ -13,6 +13,7 @@ $routes->get('/venta',          'Venta::index');
 $routes->get('/venta/(:num)',   'Venta::index/$1');
 
 $routes->get('/panel',          'Panel::index');
+$routes->get('/caja',           'Caja::index');
 
 $routes->get('/almacen/compras', 'Almacen::compras');
 $routes->get('/almacen/insumos', 'Almacen::insumos');
@@ -42,6 +43,9 @@ $routes->group('api', function ($routes) {
 
     // Ventas
     $routes->post('cobrar_pedido',          'Api\VentasApi::cobrar_pedido');
+
+    // Caja
+    $routes->get('caja/get_data',           'Api\CajaApi::get_data');
 
     // Almacén
     $routes->get('get_insumos',             'Api\AlmacenApi::get_insumos');

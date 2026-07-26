@@ -30,6 +30,10 @@ class VentasApi extends BaseApiController
         $detalleModel = new PedidoDetalleOperacionesModel();
         $mesaModel    = new MesaModel();
 
+        $turno = session('usuario_turno');
+        $json['id_usuario']    = $turno['id']     ?? null;
+        $json['nombre_cajero'] = $turno['nombre'] ?? null;
+
         try {
             // 1. Guardar venta + detalles (transacción en operaciones)
             $resultado = $ventaModel->guardarVenta($json);

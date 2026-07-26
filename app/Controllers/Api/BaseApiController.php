@@ -19,4 +19,10 @@ class BaseApiController extends BaseController
     {
         return in_array($this->rolActual(), ['supervisor', 'admin', 'sudo'], true);
     }
+
+    // solo admin y sudo pueden gestionar usuarios y ver caja
+    protected function puedeGestionar(): bool
+    {
+        return in_array($this->rolActual(), ['admin', 'sudo'], true);
+    }
 }
