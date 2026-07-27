@@ -34,23 +34,27 @@ class VentasApi extends BaseApiController
         $json['id_usuario']    = $turno['id']     ?? null;
         $json['nombre_cajero'] = $turno['nombre'] ?? null;
 
+        $liberarMesa = $json['liberar_mesa'] ?? true;
+
         try {
             // 1. Guardar venta + detalles (transacción en operaciones)
             $resultado = $ventaModel->guardarVenta($json);
 
-            // 2. Cerrar el pedido activo de la mesa
-            $pedido = $pedidoModel
-                ->where('id_mesa', $json['id_mesa'])
-                ->where('estado', 'pendiente')
-                ->first();
+            if ($liberarMesa) {
+                // 2. Cerrar el pedido activo de la mesa
+                $pedido = $pedidoModel
+                    ->where('id_mesa', $json['id_mesa'])
+                    ->where('estado', 'pendiente')
+                    ->first();
 
-            if ($pedido) {
-                $detalleModel->where('id_pedido', $pedido['id'])->delete();
-                $pedidoModel->delete($pedido['id']);
+                if ($pedido) {
+                    $detalleModel->where('id_pedido', $pedido['id'])->delete();
+                    $pedidoModel->delete($pedido['id']);
+                }
+
+                // 3. Liberar la mesa
+                $mesaModel->update($json['id_mesa'], ['estado' => 'libre']);
             }
-
-            // 3. Liberar la mesa
-            $mesaModel->update($json['id_mesa'], ['estado' => 'libre']);
 
             return $this->respond([
                 'success'  => true,

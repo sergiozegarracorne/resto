@@ -10,7 +10,9 @@ class VentaModel extends Model
     protected $table         = 'rest_venta';
     protected $primaryKey    = 'id_venta';
     protected $allowedFields = [
-        'id_mesa', 'id_usuario', 'nombre_cajero', 'metodo_pago', 'total', 'recibido', 'fecha_registro',
+        'id_mesa', 'id_usuario', 'nombre_cajero',
+        'cliente_doc_tipo', 'cliente_doc_num', 'cliente_nombre',
+        'metodo_pago', 'total', 'recibido', 'vuelto', 'fecha_registro',
         'igv_porcentaje', 'total_neto', 'total_igv', 'total_icbr',
     ];
 
@@ -76,18 +78,27 @@ class VentaModel extends Model
 
         $this->db->transStart();
 
+        $recibido = (float)($data['recibido'] ?? $data['total']);
+        $vuelto   = max(0, $recibido - (float)$data['total']);
+
+        $cliente = $data['cliente'] ?? null;
+
         $this->insert([
-            'id_mesa'        => $data['id_mesa'],
-            'id_usuario'     => $data['id_usuario']    ?? null,
-            'nombre_cajero'  => $data['nombre_cajero'] ?? null,
-            'metodo_pago'    => $data['metodo'],
-            'total'          => $data['total'],
-            'recibido'       => $data['recibido'],
-            'fecha_registro' => date('Y-m-d H:i:s'),
-            'igv_porcentaje' => $igvPct,
-            'total_neto'     => round($totalNeto, 2),
-            'total_igv'      => round($totalIgv, 2),
-            'total_icbr'     => round($totalIcbr, 2),
+            'id_mesa'          => $data['id_mesa'],
+            'id_usuario'       => $data['id_usuario']    ?? null,
+            'nombre_cajero'    => $data['nombre_cajero'] ?? null,
+            'cliente_doc_tipo' => $cliente['tipo']   ?? null,
+            'cliente_doc_num'  => $cliente['doc']    ?? null,
+            'cliente_nombre'   => $cliente['nombre'] ?? null,
+            'metodo_pago'      => $data['metodo'],
+            'total'            => $data['total'],
+            'recibido'         => $recibido,
+            'vuelto'           => $vuelto,
+            'fecha_registro'   => date('Y-m-d H:i:s'),
+            'igv_porcentaje'   => $igvPct,
+            'total_neto'       => round($totalNeto, 2),
+            'total_igv'        => round($totalIgv, 2),
+            'total_icbr'       => round($totalIcbr, 2),
         ]);
 
         $idVenta      = $this->db->insertID();
