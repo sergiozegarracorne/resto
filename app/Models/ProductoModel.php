@@ -11,7 +11,7 @@ class ProductoModel extends Model
     protected $returnType    = 'array';
     protected $useSoftDeletes = true;
     protected $allowedFields = [
-        'categoria_id', 'nombre', 'codigo_rapido', 'descripcion',
+        'categoria_id', 'nombre', 'codigo_rapido', 'descripcion', 'ingredientes',
         'precio', 'precio_costo', 'precio_libre', 'precio_max',
         'imagen', 'es_combo', 'por_peso',
         'tipo_igv', 'aplica_icbr',

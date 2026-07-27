@@ -9,6 +9,10 @@
     <header class="bg-white border-b border-gray-200 px-5 py-3 flex items-center justify-between shrink-0">
         <h1 class="text-lg font-bold text-gray-800">🖨️ Impresoras de Red</h1>
         <div class="flex gap-2">
+            <a href="<?= base_url('panel') ?>"
+                class="px-3 py-1.5 rounded-lg text-sm font-bold border border-gray-300 hover:bg-gray-50 flex items-center gap-1">
+                ← Panel
+            </a>
             <button onclick="abrirScan()"
                 class="px-3 py-1.5 rounded-lg text-sm font-bold border border-gray-300 hover:bg-gray-50">
                 📡 Escanear

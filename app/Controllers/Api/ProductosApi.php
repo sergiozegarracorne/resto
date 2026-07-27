@@ -37,6 +37,9 @@ class ProductosApi extends BaseApiController
             'stock_minimo'     => isset($json['stock_minimo'])  ? (float) $json['stock_minimo']  : 0,
             'stock_maximo'     => isset($json['stock_maximo']) && $json['stock_maximo'] !== '' && $json['stock_maximo'] !== null ? (float) $json['stock_maximo'] : null,
             'fecha_vencimiento'=> ($json['fecha_vencimiento'] ?? '') ?: null,
+            'descripcion'      => ($json['descripcion']      ?? '') ?: null,
+            'imagen'           => ($json['imagen']           ?? '') ?: null,
+            'ingredientes'     => ($json['ingredientes']     ?? '') ?: null,
         ];
 
         if (!empty($json['id'])) {

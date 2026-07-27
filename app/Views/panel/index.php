@@ -59,14 +59,14 @@ Panel Central - Resta
         </a>
         <?php endif; ?>
 
-        <button
+        <a href="<?= base_url('ventas') ?>"
             class="bg-white border-b-4 border-indigo-500 rounded-2xl shadow-md active:scale-95 active:bg-indigo-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
             <div
                 class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
                 📈
             </div>
             <span class="text-lg font-bold text-gray-700">Ventas</span>
-        </button>
+        </a>
 
         <?php if (in_array($rol, ['admin', 'sudo'], true)): ?>
         <a href="<?= base_url('usuarios') ?>"

@@ -108,6 +108,54 @@
 
             <!-- Separador -->
             <div class="border-t border-gray-100 pt-1">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Descripción e imagen</p>
+            </div>
+
+            <!-- Descripción -->
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Descripción corta
+                </label>
+                <input id="p-descripcion" type="text" maxlength="150" autocomplete="off"
+                    placeholder="Ej: Masa crujiente, doble queso, salsa de tomate..."
+                    oninput="document.getElementById('desc-chars').textContent=this.value.length"
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-blue-500 transition">
+                <p class="text-xs text-gray-400 mt-1"><span id="desc-chars">0</span>/150</p>
+            </div>
+
+            <!-- Imagen -->
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Miniatura / Imagen
+                </label>
+                <div class="flex gap-3 items-center">
+                    <div onclick="abrirSelectorImagenes()"
+                        class="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 bg-gray-50 flex items-center min-h-[44px] overflow-hidden cursor-pointer hover:border-blue-300 transition">
+                        <span id="p-imagen-nombre" class="text-sm text-gray-400 italic truncate">Sin imagen — click para elegir</span>
+                    </div>
+                    <input type="hidden" id="p-imagen">
+                    <div id="img-preview-wrap" onclick="abrirSelectorImagenes()"
+                        style="width:56px;height:56px;border-radius:0.75rem;border:2px dashed #93c5fd;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;background:#eff6ff;cursor:pointer"
+                        title="Elegir imagen">
+                        <span id="img-preview-placeholder" class="text-2xl">🖼️</span>
+                        <img id="img-preview" src="" alt="" style="display:none;width:100%;height:100%;object-fit:cover"
+                            onerror="this.style.display='none';document.getElementById('img-preview-placeholder').style.display=''">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ingredientes -->
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    Ingredientes
+                </label>
+                <textarea id="p-ingredientes" rows="3"
+                    placeholder="Un ingrediente por línea:&#10;Queso mozzarella&#10;Tomate fresco&#10;Aceitunas negras"
+                    class="w-full border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-700 placeholder-gray-300 focus:outline-none focus:border-blue-500 transition resize-none"></textarea>
+            </div>
+
+            <!-- Separador -->
+            <div class="border-t border-gray-100 pt-1">
                 <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">Impuestos</p>
             </div>
 
@@ -203,6 +251,90 @@
             <button type="submit" form="form-producto" id="btn-guardar-p"
                 class="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 active:bg-blue-800 transition shadow-lg shadow-blue-200 text-sm">
                 Guardar producto
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL SELECTOR DE IMÁGENES
+══════════════════════════════════════════════════════════ -->
+<div id="modal-imagenes" style="display:none;z-index:60" class="fixed inset-0 bg-black/70 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style="max-height:90vh">
+
+        <!-- Header -->
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+            <h2 class="text-base font-bold text-gray-800">📷 Seleccionar imagen</h2>
+            <button onclick="cerrarSelectorImagenes()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="border-b border-gray-100 px-5 flex shrink-0">
+            <button id="tab-biblioteca-btn" onclick="cambiarTabImg('biblioteca')"
+                class="px-4 py-3 text-sm font-semibold border-b-2 border-blue-500 text-blue-600 transition">
+                🗂 Biblioteca
+            </button>
+            <button id="tab-subir-btn" onclick="cambiarTabImg('subir')"
+                class="px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">
+                ⬆️ Subir imagen
+            </button>
+        </div>
+
+        <!-- TAB BIBLIOTECA -->
+        <div id="tab-biblioteca" class="flex flex-1 min-h-0 overflow-hidden">
+            <!-- Lista de nombres izquierda -->
+            <div class="w-60 shrink-0 border-r border-gray-100 overflow-y-auto bg-white">
+                <div id="galeria-grid" class="flex flex-col divide-y divide-gray-100">
+                    <div class="text-center py-10 text-gray-400 text-sm">Cargando...</div>
+                </div>
+            </div>
+            <!-- Preview derecha -->
+            <div class="flex-1 flex flex-col items-center justify-center p-6 gap-3 min-h-0">
+                <div class="flex items-center justify-center bg-gray-50 rounded-xl overflow-hidden" style="width:400px;height:400px;max-width:100%">
+                    <div id="galeria-no-sel" class="text-center text-gray-300">
+                        <div class="text-6xl mb-2">🖼️</div>
+                        <p class="text-sm">Selecciona una imagen</p>
+                    </div>
+                    <img id="galeria-preview-img" src="" alt="" style="display:none;max-width:400px;max-height:400px;object-fit:contain;border-radius:0.5rem">
+                </div>
+                <p id="galeria-preview-nombre" class="text-xs text-gray-400 font-mono text-center truncate w-full max-w-sm"></p>
+            </div>
+        </div>
+
+        <!-- TAB SUBIR -->
+        <div id="tab-subir" style="display:none" class="flex-1 flex flex-col items-center justify-center p-8 gap-5 overflow-y-auto">
+            <label for="file-upload-input" id="drop-zone"
+                class="w-full max-w-md border-2 border-dashed border-gray-300 rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition"
+                ondragover="event.preventDefault();this.classList.add('border-blue-400','bg-blue-50')"
+                ondragleave="this.classList.remove('border-blue-400','bg-blue-50')"
+                ondrop="manejarDropImagen(event)">
+                <div class="text-5xl">📁</div>
+                <p class="text-sm font-semibold text-gray-600">Arrastra una imagen aquí</p>
+                <p class="text-xs text-gray-400">o haz click para seleccionar</p>
+                <p class="text-xs text-gray-300">JPG, PNG, WEBP, GIF — máx. 5 MB</p>
+            </label>
+            <input type="file" id="file-upload-input" accept="image/*" class="sr-only" onchange="previsualizarSubida(this)">
+
+            <div id="subida-preview-wrap" style="display:none" class="flex flex-col items-center gap-3 w-full max-w-md">
+                <img id="subida-preview-img" src="" alt="" class="max-h-40 rounded-xl shadow object-contain">
+                <p id="subida-preview-nombre" class="text-xs text-gray-500 font-mono text-center"></p>
+                <div id="subida-error" style="display:none" class="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2 w-full text-center"></div>
+                <button onclick="ejecutarSubida()" id="btn-subir-imagen"
+                    class="px-6 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-200 w-full max-w-xs">
+                    ⬆️ Subir imagen
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 py-4 border-t border-gray-100 flex gap-3 shrink-0">
+            <button onclick="cerrarSelectorImagenes()"
+                class="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition">
+                Cancelar
+            </button>
+            <button onclick="confirmarSeleccionImg()" id="btn-confirmar-img" disabled
+                class="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-lg shadow-blue-200">
+                ✔ Seleccionar imagen
             </button>
         </div>
     </div>
@@ -370,7 +502,38 @@ function actualizarPreview() {
 
     document.getElementById('mp-preview-cat').textContent = cat ? (cat.icono ? cat.icono + ' ' : '') + cat.nombre : 'Sin categoría';
     document.getElementById('mp-preview-precio').textContent = isNaN(precio) ? 'S/ —' : 'S/ ' + precio.toFixed(2);
-    document.getElementById('mp-icon').textContent = cat?.icono || '🍽️';
+    if (!document.getElementById('p-imagen').value.trim()) {
+        document.getElementById('mp-icon').textContent = cat?.icono || '🍽️';
+    }
+}
+
+function actualizarImagenPreview() {
+    setImagenFormulario(document.getElementById('p-imagen').value.trim());
+}
+
+function setImagenFormulario(url) {
+    const nombre      = url ? url.split('/').pop() : '';
+    const labelEl     = document.getElementById('p-imagen-nombre');
+    const img         = document.getElementById('img-preview');
+    const placeholder = document.getElementById('img-preview-placeholder');
+    const mpIcon      = document.getElementById('mp-icon');
+
+    labelEl.textContent    = nombre || 'Sin imagen — click para elegir';
+    labelEl.style.fontStyle = nombre ? 'normal' : 'italic';
+    labelEl.style.color     = nombre ? '#374151' : '#9ca3af';
+
+    if (url) {
+        img.src = url;
+        img.style.display = 'block';
+        placeholder.style.display = 'none';
+        mpIcon.innerHTML = '<img src="' + url + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:1rem" onerror="this.parentElement.textContent=\'🍽️\'">';
+    } else {
+        img.style.display = 'none';
+        placeholder.style.display = '';
+        const catId = document.getElementById('p-categoria').value;
+        const cat   = categorias.find(c => String(c.id) === String(catId));
+        mpIcon.textContent = cat?.icono || '🍽️';
+    }
 }
 
 // ─── Chips de categoría ───────────────────────────────────
@@ -466,9 +629,13 @@ function abrirModalProducto(p = null) {
     document.getElementById('p-precio').value      = p?.precio        || '';
     document.getElementById('p-precio-costo').value = p?.precio_costo || '';
     document.getElementById('p-categoria').value   = p?.categoria_id  || '';
-    document.getElementById('p-stock-min').value   = p?.stock_minimo  || '';
-    document.getElementById('p-stock-max').value   = p?.stock_maximo  || '';
-    document.getElementById('p-vencimiento').value = p?.fecha_vencimiento || '';
+    document.getElementById('p-stock-min').value    = p?.stock_minimo       || '';
+    document.getElementById('p-stock-max').value    = p?.stock_maximo       || '';
+    document.getElementById('p-vencimiento').value  = p?.fecha_vencimiento  || '';
+    document.getElementById('p-descripcion').value  = p?.descripcion        || '';
+    document.getElementById('p-imagen').value        = p?.imagen             || '';
+    document.getElementById('p-ingredientes').value  = p?.ingredientes       || '';
+    document.getElementById('desc-chars').textContent = (p?.descripcion || '').length;
 
     setToggleCombo(p?.es_combo == 1);
     setToggleActivo(p ? p.activo == 1 : true);
@@ -476,6 +643,7 @@ function abrirModalProducto(p = null) {
     seleccionarIgv(p?.tipo_igv || 'gravado');
     renderChipsCategorias(p?.categoria_id || '');
     actualizarPreview();
+    actualizarImagenPreview();
     document.getElementById('mp-error').classList.add('hidden');
     document.getElementById('modal-producto').classList.remove('hidden');
     setTimeout(() => document.getElementById('p-nombre').focus(), 50);
@@ -511,6 +679,9 @@ async function guardarProducto(e) {
                 stock_minimo:      document.getElementById('p-stock-min').value || 0,
                 stock_maximo:      document.getElementById('p-stock-max').value || null,
                 fecha_vencimiento: document.getElementById('p-vencimiento').value || null,
+                descripcion:       document.getElementById('p-descripcion').value.trim()  || null,
+                imagen:            document.getElementById('p-imagen').value.trim()        || null,
+                ingredientes:      document.getElementById('p-ingredientes').value.trim()  || null,
             })
         });
         const data = await res.json();
@@ -641,6 +812,146 @@ function mostrarError(elId, msg) {
         if (e.target === e.currentTarget) e.currentTarget.classList.add('hidden');
     });
 });
+
+// ─── Selector de imágenes ─────────────────────────────────
+let imgSeleccionada  = null;
+let archivoPendiente = null;
+
+async function abrirSelectorImagenes() {
+    imgSeleccionada  = null;
+    archivoPendiente = null;
+    document.getElementById('btn-confirmar-img').disabled = true;
+    document.getElementById('galeria-preview-img').style.display = 'none';
+    document.getElementById('galeria-no-sel').style.display      = '';
+    document.getElementById('galeria-preview-nombre').textContent = '';
+    document.getElementById('subida-preview-wrap').style.display  = 'none';
+    document.getElementById('file-upload-input').value            = '';
+    document.getElementById('subida-error').style.display         = 'none';
+    document.getElementById('modal-imagenes').style.display       = 'flex';
+    cambiarTabImg('biblioteca');
+    await cargarGaleria();
+}
+
+function cerrarSelectorImagenes() {
+    document.getElementById('modal-imagenes').style.display = 'none';
+}
+
+function cambiarTabImg(tab) {
+    const esBib = tab === 'biblioteca';
+    document.getElementById('tab-biblioteca').style.display = esBib ? 'flex' : 'none';
+    document.getElementById('tab-subir').style.display      = esBib ? 'none'  : 'flex';
+    const actCls  = 'px-4 py-3 text-sm font-semibold border-b-2 transition border-blue-500 text-blue-600';
+    const idleCls = 'px-4 py-3 text-sm font-semibold border-b-2 transition border-transparent text-gray-500 hover:text-gray-700';
+    document.getElementById('tab-biblioteca-btn').className = esBib  ? actCls : idleCls;
+    document.getElementById('tab-subir-btn').className      = !esBib ? actCls : idleCls;
+}
+
+async function cargarGaleria() {
+    const grid = document.getElementById('galeria-grid');
+    grid.innerHTML = '<div class="col-span-2 text-center py-10 text-gray-400 text-sm">Cargando...</div>';
+    try {
+        const res  = await fetch(BASE + 'api/imagenes/get_all');
+        const data = await res.json();
+        renderGaleriaImg(data.imagenes || []);
+    } catch {
+        grid.innerHTML = '<div class="col-span-2 text-center py-8 text-red-400 text-xs">Error al cargar</div>';
+    }
+}
+
+function renderGaleriaImg(imagenes) {
+    const grid = document.getElementById('galeria-grid');
+    if (!imagenes.length) {
+        grid.innerHTML = '<div class="text-center py-10 text-gray-400 text-xs leading-relaxed">Sin imágenes aún.<br>Usa ⬆️ para subir una.</div>';
+        return;
+    }
+    grid.innerHTML = imagenes.map(img => `
+        <button type="button"
+            onclick="seleccionarImgGaleria('${img.url}','${img.nombre}')"
+            data-img-url="${img.url}"
+            class="img-thumb w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors flex items-center gap-2 truncate">
+            <span class="text-base shrink-0">🖼️</span>
+            <span class="truncate">${img.nombre}</span>
+        </button>`).join('');
+}
+
+function seleccionarImgGaleria(url, nombre) {
+    imgSeleccionada = {url, nombre};
+    document.querySelectorAll('.img-thumb').forEach(b => {
+        const activo = b.dataset.imgUrl === url;
+        b.style.background = activo ? '#eff6ff' : '';
+        b.style.color      = activo ? '#1d4ed8' : '';
+        b.style.fontWeight = activo ? '600'     : '';
+    });
+    const previewImg = document.getElementById('galeria-preview-img');
+    previewImg.src           = url;
+    previewImg.style.display = 'block';
+    document.getElementById('galeria-no-sel').style.display      = 'none';
+    document.getElementById('galeria-preview-nombre').textContent = nombre;
+    document.getElementById('btn-confirmar-img').disabled         = false;
+}
+
+function confirmarSeleccionImg() {
+    if (!imgSeleccionada) return;
+    document.getElementById('p-imagen').value = imgSeleccionada.url;
+    setImagenFormulario(imgSeleccionada.url);
+    cerrarSelectorImagenes();
+}
+
+// ─── Subida de archivos ───────────────────────────────────
+function previsualizarSubida(input) {
+    const file = input.files[0];
+    if (!file) return;
+    archivoPendiente = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('subida-preview-img').src         = e.target.result;
+        document.getElementById('subida-preview-nombre').textContent = file.name;
+        document.getElementById('subida-preview-wrap').style.display = 'flex';
+        document.getElementById('subida-error').style.display        = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
+function manejarDropImagen(e) {
+    e.preventDefault();
+    document.getElementById('drop-zone').classList.remove('border-blue-400','bg-blue-50');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    const input = document.getElementById('file-upload-input');
+    input.files = dt.files;
+    previsualizarSubida(input);
+}
+
+async function ejecutarSubida() {
+    if (!archivoPendiente) return;
+    const btn = document.getElementById('btn-subir-imagen');
+    btn.disabled = true; btn.textContent = 'Subiendo...';
+    document.getElementById('subida-error').style.display = 'none';
+    const form = new FormData();
+    form.append('imagen', archivoPendiente);
+    try {
+        const res  = await fetch(BASE + 'api/imagenes/upload', {method:'POST', body: form});
+        const data = await res.json();
+        if (data.success) {
+            archivoPendiente = null;
+            document.getElementById('file-upload-input').value      = '';
+            document.getElementById('subida-preview-wrap').style.display = 'none';
+            cambiarTabImg('biblioteca');
+            await cargarGaleria();
+            seleccionarImgGaleria(data.url, data.nombre);
+        } else {
+            document.getElementById('subida-error').textContent    = data.message || 'Error al subir';
+            document.getElementById('subida-error').style.display  = 'block';
+        }
+    } catch {
+        document.getElementById('subida-error').textContent   = 'Error de conexión';
+        document.getElementById('subida-error').style.display = 'block';
+    } finally {
+        btn.disabled = false; btn.textContent = '⬆️ Subir imagen';
+    }
+}
 
 cargar();
 </script>

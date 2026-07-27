@@ -15,7 +15,7 @@ class MesasApi extends BaseApiController
         $porUsuario = \Config\Database::connect('operaciones')
             ->query("
                 SELECT id_usuario, COUNT(*) AS mesas_abiertas
-                FROM rest_pedido
+                FROM pedidos
                 WHERE estado = 'pendiente'
                 GROUP BY id_usuario
             ")
