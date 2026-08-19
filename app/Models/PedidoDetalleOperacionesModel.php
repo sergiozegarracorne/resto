@@ -13,7 +13,7 @@ class PedidoDetalleOperacionesModel extends Model
     protected $returnType = 'array';
     protected $useSoftDeletes = false;
     protected $protectFields = true;
-    protected $allowedFields = ['id_pedido', 'id_producto', 'nombre_producto', 'cantidad', 'precio'];
+    protected $allowedFields = ['id_pedido', 'id_producto', 'nombre_producto', 'cantidad', 'precio', 'pagado'];
 
     protected bool $allowEmptyInserts = false;
     protected bool $updateOnlyChanged = true;

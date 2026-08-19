@@ -4,6 +4,7 @@ namespace App\Controllers\Api;
 
 use App\Models\PisoModel;
 use App\Models\MesaModel;
+use App\Models\PedidoOperacionesModel;
 
 class MesasApi extends BaseApiController
 {
@@ -87,6 +88,20 @@ class MesasApi extends BaseApiController
         return $this->respond(['success' => true, 'message' => 'Mesas separadas correctamente']);
     }
 
+    public function set_pre_cuenta()
+    {
+        $json = $this->request->getJSON(true);
+        if (empty($json['id_mesa'])) {
+            return $this->fail('Falta id_mesa');
+        }
+        $mesaModel = new MesaModel();
+        if (!$mesaModel->find($json['id_mesa'])) {
+            return $this->failNotFound('Mesa no encontrada');
+        }
+        $mesaModel->update($json['id_mesa'], ['estado' => 'pre_cuenta']);
+        return $this->respond(['success' => true]);
+    }
+
     public function update_mesas_positions()
     {
         $json = $this->request->getJSON();
@@ -110,5 +125,104 @@ class MesasApi extends BaseApiController
         }
 
         return $this->respond(['success' => true, 'message' => 'Posiciones actualizadas']);
+    }
+
+    // ── CRUD Pisos ────────────────────────────────────────────────────────────
+
+    public function piso_save()
+    {
+        if (!$this->puedeAdmin()) {
+            return $this->failForbidden('Sin permiso');
+        }
+        $json   = $this->request->getJSON(true);
+        $nombre = trim($json['nombre'] ?? '');
+        if ($nombre === '') {
+            return $this->fail('El nombre del piso es requerido');
+        }
+
+        $pisoModel = new PisoModel();
+
+        if (!empty($json['id'])) {
+            $pisoModel->update($json['id'], ['nombre' => $nombre]);
+            return $this->respond(['success' => true, 'message' => 'Piso actualizado']);
+        }
+
+        $maxOrden = (int) ($pisoModel->selectMax('orden')->first()['orden'] ?? 0);
+        $id = $pisoModel->insert(['nombre' => $nombre, 'orden' => $maxOrden + 1]);
+        return $this->respond(['success' => true, 'id' => $id, 'message' => 'Piso creado']);
+    }
+
+    public function piso_delete()
+    {
+        if (!$this->puedeAdmin()) {
+            return $this->failForbidden('Sin permiso');
+        }
+        $json = $this->request->getJSON(true);
+        if (empty($json['id'])) {
+            return $this->fail('Falta id');
+        }
+
+        $mesaModel = new MesaModel();
+        if ($mesaModel->where('id_piso', $json['id'])->countAllResults() > 0) {
+            return $this->fail('No se puede eliminar: el piso tiene mesas. Elimínalas primero.');
+        }
+
+        (new PisoModel())->delete($json['id']);
+        return $this->respond(['success' => true]);
+    }
+
+    // ── CRUD Mesas ────────────────────────────────────────────────────────────
+
+    public function mesa_save()
+    {
+        if (!$this->puedeAdmin()) {
+            return $this->failForbidden('Sin permiso');
+        }
+        $json    = $this->request->getJSON(true);
+        $nombre  = trim($json['nombre'] ?? '');
+        $id_piso = $json['id_piso'] ?? null;
+
+        if ($nombre === '' || !$id_piso) {
+            return $this->fail('Nombre e id_piso son requeridos');
+        }
+
+        $mesaModel = new MesaModel();
+
+        if (!empty($json['id'])) {
+            $mesaModel->update($json['id'], ['nombre' => $nombre, 'id_piso' => $id_piso]);
+            return $this->respond(['success' => true, 'message' => 'Mesa actualizada']);
+        }
+
+        $id = $mesaModel->insert([
+            'nombre'  => $nombre,
+            'id_piso' => $id_piso,
+            'estado'  => 'libre',
+            'x'       => 20,
+            'y'       => 20,
+        ]);
+        return $this->respond(['success' => true, 'id' => $id, 'message' => 'Mesa creada']);
+    }
+
+    public function mesa_delete()
+    {
+        if (!$this->puedeAdmin()) {
+            return $this->failForbidden('Sin permiso');
+        }
+        $json = $this->request->getJSON(true);
+        if (empty($json['id'])) {
+            return $this->fail('Falta id');
+        }
+
+        $mesaModel = new MesaModel();
+        $mesa = $mesaModel->find($json['id']);
+        if (!$mesa) {
+            return $this->failNotFound('Mesa no encontrada');
+        }
+        if ($mesa['estado'] !== 'libre') {
+            return $this->fail('No se puede eliminar: la mesa tiene un pedido activo.');
+        }
+
+        $mesaModel->delete($json['id']);
+        return $this->respond(['success' => true]);
     }
 }

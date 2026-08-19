@@ -40,6 +40,45 @@ class VentasApi extends BaseApiController
             // 1. Guardar venta + detalles (transacción en operaciones)
             $resultado = $ventaModel->guardarVenta($json);
 
+            // 2. Si es pago parcial (split), marcar ítems como pagados en pedido_detalles
+            if (!$liberarMesa && !empty($json['items'])) {
+                $pedido = $pedidoModel
+                    ->where('id_mesa', $json['id_mesa'])
+                    ->where('estado', 'pendiente')
+                    ->first();
+
+                if ($pedido) {
+                    foreach ($json['items'] as $item) {
+                        $idProducto = $item['id'] ?? null;
+                        $qtyCobrada = (int) ($item['cantidad'] ?? 0);
+                        if (!$idProducto || $qtyCobrada <= 0) continue;
+
+                        $det = $detalleModel
+                            ->where('id_pedido', $pedido['id'])
+                            ->where('id_producto', $idProducto)
+                            ->where('pagado', 0)
+                            ->first();
+
+                        if (!$det) continue;
+
+                        if ($qtyCobrada >= (int) $det['cantidad']) {
+                            $detalleModel->update($det['id'], ['pagado' => 1]);
+                        } else {
+                            // Pago parcial de cantidad: dividir la fila
+                            $detalleModel->update($det['id'], ['cantidad' => (int) $det['cantidad'] - $qtyCobrada]);
+                            $detalleModel->insert([
+                                'id_pedido'       => $pedido['id'],
+                                'id_producto'     => $idProducto,
+                                'nombre_producto' => $det['nombre_producto'],
+                                'cantidad'        => $qtyCobrada,
+                                'precio'          => $det['precio'],
+                                'pagado'          => 1,
+                            ]);
+                        }
+                    }
+                }
+            }
+
             if ($liberarMesa) {
                 // 2. Cerrar el pedido activo de la mesa
                 $pedido = $pedidoModel

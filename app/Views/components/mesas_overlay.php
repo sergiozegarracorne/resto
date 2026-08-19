@@ -171,8 +171,9 @@
 
                 const isSelected = selectedMesas.includes(mesa.id);
                 const isPrincipal = mesaPrincipal === mesa.id;
-                const isOcupada = mesa.estado === 'ocupada';
-                const hasPadre = mesa.id_padre != null; // Es una mesa unida (hija)                
+                const isPreCuenta = mesa.estado === 'pre_cuenta';
+                const isOcupada = mesa.estado === 'ocupada' || isPreCuenta;
+                const hasPadre = mesa.id_padre != null; // Es una mesa unida (hija)
 
                 // Capa para líneas CSS
                 // Se dibuja en drawLines()
@@ -185,11 +186,18 @@
                 // Icono Libre (Mesa vacía / Check)
                 let icon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
                 let tienePadre = '';
+                let preCuentaBadge = '';
 
-                if (isOcupada) {
-                    styles = 'bg-indigo-50 border-indigo-500/50 text-indigo-600  ';
+                if (isOcupada && !isPreCuenta) {
+                    styles = 'bg-indigo-50 border-indigo-500/50 text-indigo-600';
                     // Icono Ocupada (Usuarios / Grupo)
                     icon = `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>`;
+                }
+
+                if (isPreCuenta) {
+                    styles = 'bg-amber-50 border-amber-400 text-amber-700 hover:bg-amber-100';
+                    icon = `<span class="text-xl leading-none">🙋</span>`;
+                    preCuentaBadge = `<span class="absolute -top-2 -right-2 bg-amber-400 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow z-30">💰</span>`;
                 }
 
                 if (hasPadre) {
@@ -253,9 +261,9 @@
                     ${icon}
                 </span>
                 <span class="font-bold text-xs leading-none mt-1">${mesa.nombre}</span>
-            ${tienePadre}
-            `
-                    ;
+                ${tienePadre}
+                ${preCuentaBadge}
+            `;
 
                 if (!disabled) {
                     el.onclick = () => onSelectMesa(mesa);

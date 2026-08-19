@@ -19,6 +19,7 @@ $routes->get('/almacen/compras', 'Almacen::compras');
 $routes->get('/almacen/insumos', 'Almacen::insumos');
 
 $routes->get('/productos', 'Productos::index');
+$routes->get('/mesas',     'Mesas::index');
 $routes->get('/combos',      'Combos::index');
 $routes->get('/impresoras',  'Impresoras::index');
 $routes->get('/usuarios',  'Usuarios::index');
@@ -37,6 +38,11 @@ $routes->group('api', function ($routes) {
     $routes->post('unir_mesas',                'Api\MesasApi::unir_mesas');
     $routes->post('separar_mesas',             'Api\MesasApi::separar_mesas');
     $routes->post('update_mesas_positions',    'Api\MesasApi::update_mesas_positions');
+    $routes->post('mesas/set_pre_cuenta',      'Api\MesasApi::set_pre_cuenta');
+    $routes->post('pisos/save',                'Api\MesasApi::piso_save');
+    $routes->post('pisos/delete',              'Api\MesasApi::piso_delete');
+    $routes->post('mesas/save',                'Api\MesasApi::mesa_save');
+    $routes->post('mesas/delete',              'Api\MesasApi::mesa_delete');
 
     // Pedidos
     $routes->get('get_mesa_pedido/(:num)',  'Api\PedidosApi::get_mesa_pedido/$1');

@@ -1,8 +1,9 @@
 <!-- SECCION ACCIONES (20% altura) -->
 <section class="h-[22vh] bg-orange-100  border-t-8 border-orange-300 p-6 z-1">
     <div class="grid grid-cols-5 gap-3 h-full px-2">
-        <button
-            class="bg-white border border-red-200 text-red-500 font-medium rounded-2xl shadow-sm hover:shadow-md hover:border-red-400 hover:bg-red-50 active:scale-95 transition-all flex flex-col items-center justify-center gap-1 group">
+        <button id="btn-corregir" onclick="undoUltimaAccion()"
+            class="bg-white border border-red-200 text-red-500 font-medium rounded-2xl shadow-sm hover:shadow-md hover:border-red-400 hover:bg-red-50 active:scale-95 transition-all flex flex-col items-center justify-center gap-1 group"
+            style="opacity:0.4" disabled>
             <span
                 class="text-2xl group-hover:scale-110 transition-transform filter grayscale group-hover:grayscale-0">❌</span>
             <span class="text-xs font-bold tracking-wide">Corregir</span>

@@ -65,11 +65,14 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
 ?>
 <div class="p-4 bg-gray-50 border-t border-gray-200">
     <div class="flex justify-between items-center mb-4 text-xl font-bold text-gray-800">
-        <span>Total</span>
+        <span id="total-ticket-label">Total</span>
         <span id="total-ticket">S/ 0.00</span>
     </div>
 
     <?php if ($_puedeAdmin): ?>
+    <div id="pre-cuenta-banner" class="hidden mb-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-amber-700 text-xs font-bold" style="display:none">
+        <span>🙋💰</span><span>Pre-Cuenta solicitada — Mesa lista para cobrar</span>
+    </div>
     <div class="grid grid-cols-2 gap-2">
         <button onclick="showCancelModal()"
             class="bg-red-50 text-red-600 font-bold py-3 rounded-lg hover:bg-red-100 transition-colors active:scale-95">
@@ -81,7 +84,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
         </button>
     </div>
     <?php else: ?>
-    <button onclick="showComandaModal()"
+    <button id="btn-comanda-vendor" onclick="showComandaModal()"
         class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg transition-all active:scale-95 text-base">
         🍽️ Confirmar Comanda
     </button>
@@ -90,9 +93,12 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
 
 <script>
     // Estado del carrito y mesa
-    let carrito = [];
+    let carrito = [];          // ítems pendientes de pago
+    let carritoHistorial = []; // ítems ya cobrados en esta sesión (display only)
+    let undoStack = [];        // snapshots del carrito para deshacer (máx 30)
     let currentMesa = null;
     let saveTimeout = null;
+    let preCuentaMode = false;
     const esVendedor = <?= ($_rolActual === 'vendedor') ? 'true' : 'false' ?>;
 
     // Interface used by Mesas Overlay
@@ -116,37 +122,76 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
     }
 
     async function loadPedido(idMesa) {
-        const container = document.getElementById('lista-ticket');
-        // Show loading indicator usually, but keep it simple
-
         try {
             const res = await fetch('<?= base_url('api/get_mesa_pedido') ?>/' + idMesa + '?t=' + Date.now());
             const data = await res.json();
 
             if (data.success) {
-                carrito = data.items.map(i => ({
+                const allItems = data.items.map(i => ({
                     id: i.id,
                     nombre: i.nombre,
                     precio: parseFloat(i.precio),
                     cantidad: parseInt(i.cantidad),
                     commanded_qty: parseInt(i.cantidad),
-                    detalle: ''
+                    detalle: '',
+                    pagado: !!i.pagado,
                 }));
-                if (currentMesa) currentMesa.estado = 'ocupada'; // Optimistic update
+                carrito          = allItems.filter(i => !i.pagado);
+                carritoHistorial = allItems.filter(i =>  i.pagado);
+                // Preserve pre_cuenta estado; solo actualizar a 'ocupada' si no era pre_cuenta
+                if (currentMesa && currentMesa.estado !== 'pre_cuenta') {
+                    currentMesa.estado = 'ocupada';
+                }
             } else {
                 carrito = [];
+                carritoHistorial = [];
                 if (currentMesa) currentMesa.estado = 'libre';
             }
-            updateMesaUI(); // Refresh status
+
+            preCuentaMode = currentMesa?.estado === 'pre_cuenta';
+            updateMesaUI();
+            _updatePreCuentaUI();
         } catch (e) {
             console.error('Error loading order', e);
             carrito = [];
+            preCuentaMode = false;
         }
         renderizarTicket();
+
+        // Si tiene productos y NO está en pre-cuenta, preguntar qué hacer
+        if (carrito.length > 0 && !preCuentaMode) {
+            _showMesaActionModal();
+        }
     }
+
+    // ── Undo ─────────────────────────────────────────────────────────────────────
+    function pushUndo() {
+        if (preCuentaMode) return; // no acumular historial en pre-cuenta
+        undoStack.push(JSON.parse(JSON.stringify(carrito)));
+        if (undoStack.length > 30) undoStack.shift();
+        _updateUndoBtn();
+    }
+
+    function _updateUndoBtn() {
+        const btn = document.getElementById('btn-corregir');
+        if (!btn) return;
+        const activo = undoStack.length > 0 && !preCuentaMode;
+        btn.disabled = !activo;
+        btn.style.opacity = activo ? '1' : '0.4';
+    }
+
+    window.undoUltimaAccion = function() {
+        if (undoStack.length === 0 || preCuentaMode) return;
+        carrito = undoStack.pop();
+        _updateUndoBtn();
+        renderizarTicket();
+        autoSave();
+    };
 
     // Función Global: Agregar Producto (Modificada con AutoSave)
     window.agregarProducto = function (id, nombre, precio) {
+        if (preCuentaMode) return; // bloqueado en pre-cuenta
+        pushUndo();
         const esPrimerProducto = carrito.length === 0;
         const existente = carrito.find(item => item.id == id);
 
@@ -194,6 +239,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
                 const data = await res.json();
                 if (data.success) {
                     carrito.forEach(i => { i.commanded_qty = i.cantidad; });
+                    undoStack = []; _updateUndoBtn();
                     renderizarTicket();
                     if (statusEl) statusEl.innerText = 'GUARDADO';
                     setTimeout(() => { if (statusEl) statusEl.innerText = 'OCUPADA'; }, 1000);
@@ -207,61 +253,103 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
 
     // Función Renderizar
     function renderizarTicket() {
-        const contenedor = document.getElementById('lista-ticket');
+        const contenedor   = document.getElementById('lista-ticket');
         const displayTotal = document.getElementById('total-ticket');
+        const labelTotal   = document.getElementById('total-ticket-label');
 
-        if (carrito.length === 0) {
+        if (carrito.length === 0 && carritoHistorial.length === 0) {
             contenedor.innerHTML = '<p class="text-center text-gray-400 text-sm mt-10">Orden vacía</p>';
             displayTotal.innerText = 'S/ 0.00';
+            if (labelTotal) labelTotal.innerText = 'Total';
             return;
         }
 
-        let html = '';
+        let html  = '';
         let total = 0;
+        const hayHistorial = carritoHistorial.length > 0;
 
-        carrito.forEach((item, index) => {
-            const subtotal = item.precio * item.cantidad;
-            total += subtotal;
+        // ── Sección: ítems ya pagados (verde, solo lectura) ──────────────────
+        if (hayHistorial) {
+            html += `<div class="flex items-center gap-1.5 px-3 py-1.5" style="background:#f0fdf4">
+                <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>
+                <span style="font-size:10px" class="font-bold text-green-700 uppercase tracking-wide">Pagado</span>
+            </div>`;
+            carritoHistorial.forEach(item => {
+                const sub = item.precio * item.cantidad;
+                html += `
+                <div class="flex justify-between items-center px-3 py-2 border-b" style="border-color:#f0fdf4;opacity:0.65">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block;flex-shrink:0"></span>
+                        <p class="text-xs text-gray-400 truncate" style="text-decoration:line-through">
+                            <span class="font-bold">${item.cantidad}×</span> ${item.nombre}
+                        </p>
+                    </div>
+                    <span class="text-xs text-gray-400 shrink-0 ml-2">S/ ${sub.toFixed(2)}</span>
+                </div>`;
+            });
+        }
 
-            const cq  = item.commanded_qty ?? 0;
-            const nq  = item.cantidad - cq;
-            let badge = '';
-            if (cq === 0) {
-                badge = `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-green-100 text-green-700 font-bold">✨ Nuevo</span>`;
-            } else if (nq <= 0) {
-                badge = `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 font-bold">🍳 En preparación</span>`;
-            } else {
-                badge = `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 font-bold">🍳 ${cq} prep.</span> `
-                      + `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-green-100 text-green-700 font-bold">+${nq} nuevo</span>`;
+        // ── Sección: ítems pendientes ─────────────────────────────────────────
+        if (carrito.length > 0) {
+            if (hayHistorial) {
+                html += `<div class="flex items-center gap-1.5 px-3 py-1.5 mt-1" style="background:#fff1f2">
+                    <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span>
+                    <span style="font-size:10px" class="font-bold text-red-600 uppercase tracking-wide">Pendiente</span>
+                </div>`;
             }
 
-            html += `
-            <div class="flex justify-between items-start p-3 hover:bg-gray-50 rounded-md cursor-pointer group transition-colors border-b border-gray-100 last:border-0 animation-fade-in">
-                <div class="flex-1 min-w-0">
-                    <p class="font-normal text-xs text-gray-800">
-                        <span class="font-bold text-indigo-600">${item.cantidad} x</span> ${item.nombre}
-                    </p>
-                    <div class="flex flex-wrap gap-1 mt-1">${badge}</div>
-                    ${item.detalle ? `<p class="text-[10px] text-gray-400 mt-0.5">${item.detalle}</p>` : ''}
-                </div>
-                <div class="flex flex-col items-end gap-1 shrink-0 ml-1">
-                    <span class="font-bold text-gray-700 text-xs">S/ ${subtotal.toFixed(2)}</span>
-                    <button onclick="eliminarProducto(${item.id}); event.stopPropagation();" class="text-xs text-red-300 hover:text-red-500 p-1 hover:bg-red-50 rounded">
-                        🗑️
-                    </button>
-                </div>
-            </div>
-            `;
-        });
+            carrito.forEach((item) => {
+                const subtotal = item.precio * item.cantidad;
+                total += subtotal;
+
+                const cq  = item.commanded_qty ?? 0;
+                const nq  = item.cantidad - cq;
+                let badge = '';
+                if (cq === 0) {
+                    badge = `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-green-100 text-green-700 font-bold">✨ Nuevo</span>`;
+                } else if (nq <= 0) {
+                    badge = `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 font-bold">🍳 En preparación</span>`;
+                } else {
+                    badge = `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 font-bold">🍳 ${cq} prep.</span> `
+                          + `<span style="font-size:10px;padding:1px 6px" class="inline-flex items-center rounded-full bg-green-100 text-green-700 font-bold">+${nq} nuevo</span>`;
+                }
+
+                const dotRojo = hayHistorial
+                    ? `<span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0;margin-top:3px"></span>`
+                    : '';
+
+                html += `
+                <div class="flex justify-between items-start p-3 hover:bg-gray-50 rounded-md cursor-pointer transition-colors border-b border-gray-100 last:border-0 animation-fade-in">
+                    <div class="flex items-start gap-2 flex-1 min-w-0">
+                        ${dotRojo}
+                        <div class="flex-1 min-w-0">
+                            <p class="font-normal text-xs text-gray-800">
+                                <span class="font-bold text-indigo-600">${item.cantidad} x</span> ${item.nombre}
+                            </p>
+                            <div class="flex flex-wrap gap-1 mt-1">${badge}</div>
+                            ${item.detalle ? `<p class="text-[10px] text-gray-400 mt-0.5">${item.detalle}</p>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex flex-col items-end gap-1 shrink-0 ml-1">
+                        <span class="font-bold text-gray-700 text-xs">S/ ${subtotal.toFixed(2)}</span>
+                        <button onclick="eliminarProducto(${item.id}); event.stopPropagation();" class="text-xs text-red-300 hover:text-red-500 p-1 hover:bg-red-50 rounded">
+                            🗑️
+                        </button>
+                    </div>
+                </div>`;
+            });
+        }
 
         contenedor.innerHTML = html;
         displayTotal.innerText = 'S/ ' + total.toFixed(2);
+        if (labelTotal) labelTotal.innerText = hayHistorial ? 'Pendiente' : 'Total';
     }
 
     // Función Global: Eliminar Producto
     window.eliminarProducto = function (id) {
         const idx = carrito.findIndex(i => i.id == id);
         if (idx > -1) {
+            pushUndo();
             // Si hay más de 1, restar. Si no, confirmar y borrar.
             if (carrito[idx].cantidad > 1) {
                 carrito[idx].cantidad--;
@@ -403,8 +491,11 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
             if (data.success) {
                 // Limpiar UI
                 carrito = [];
+                carritoHistorial = [];
+                preCuentaMode = false;
                 renderizarTicket();
                 hideCancelModal();
+                _updatePreCuentaUI();
 
                 // Actualizar estado mesa localmente
                 if (currentMesa) {
@@ -432,6 +523,79 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
         btn.innerText = originalText;
     }
 
+    // --- Pre-Cuenta ---
+
+    function _updatePreCuentaUI() {
+        const btnComanda = document.getElementById('btn-comanda-vendor');
+        if (btnComanda) {
+            if (preCuentaMode) {
+                btnComanda.innerHTML = '🧾 Imprimir Pre-Cuenta';
+                btnComanda.style.background = '#d97706';
+                btnComanda.onclick = showPreCuentaModal;
+            } else {
+                btnComanda.innerHTML = '🍽️ Confirmar Comanda';
+                btnComanda.style.background = '';
+                btnComanda.onclick = showComandaModal;
+            }
+        }
+        const banner = document.getElementById('pre-cuenta-banner');
+        if (banner) banner.style.display = preCuentaMode ? 'flex' : 'none';
+    }
+
+    function _showMesaActionModal() {
+        const modal = document.getElementById('mesa-action-modal');
+        if (!modal) return;
+        document.getElementById('action-mesa-nombre').innerText = currentMesa?.nombre || '';
+        modal.classList.remove('hidden');
+    }
+
+    window.mesaActionAgregar = function() {
+        document.getElementById('mesa-action-modal').classList.add('hidden');
+    }
+
+    window.mesaActionPreCuenta = async function() {
+        const btn = document.getElementById('btn-action-pre-cuenta');
+        btn.disabled = true; btn.innerHTML = '⏳ Procesando...';
+        try {
+            const res = await fetch('<?= base_url('api/mesas/set_pre_cuenta') ?>', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ id_mesa: currentMesa.id })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById('mesa-action-modal').classList.add('hidden');
+                if (currentMesa) currentMesa.estado = 'pre_cuenta';
+                preCuentaMode = true;
+                undoStack = []; _updateUndoBtn(); // bloquear undo en pre-cuenta
+                updateMesaUI();
+                _updatePreCuentaUI();
+                if (window.loadMesas) window.loadMesas();
+            } else {
+                alert('Error al activar pre-cuenta');
+            }
+        } catch(e) { alert('Error de conexión'); }
+        btn.disabled = false; btn.innerHTML = '🧾 Solicitar Pre-Cuenta';
+    }
+
+    window.showPreCuentaModal = function() {
+        const modal = document.getElementById('pre-cuenta-modal');
+        if (!modal) return;
+        document.getElementById('pre-cuenta-mesa').innerText = currentMesa?.nombre || '';
+        const total = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+        document.getElementById('pre-cuenta-total').innerText = 'S/ ' + total.toFixed(2);
+        document.getElementById('pre-cuenta-items').innerHTML = carrito.map(i =>
+            `<div class="flex justify-between py-2 border-b border-gray-100 last:border-0 text-sm">
+                <span><span class="font-bold text-gray-700">${i.cantidad}×</span> ${i.nombre}</span>
+                <span class="font-bold">S/ ${(i.precio * i.cantidad).toFixed(2)}</span>
+            </div>`
+        ).join('');
+        modal.classList.remove('hidden');
+    }
+
+    window.hidePreCuentaModal = function() {
+        document.getElementById('pre-cuenta-modal').classList.add('hidden');
+    }
+
     // --- Logic de Cobro ---
 
     // ── Estado del checkout ────────────────────────────────────────────────────
@@ -440,18 +604,10 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
         cliente: { tipo: 'boleta', doc: '', nombre: '' },
     };
 
-    const CUENTA_PALETTE = [
-        { bg:'#EFF6FF', border:'#3B82F6', text:'#1D4ED8', btn:'#2563EB' },
-        { bg:'#FFF7ED', border:'#F97316', text:'#C2410C', btn:'#EA580C' },
-        { bg:'#F5F3FF', border:'#8B5CF6', text:'#6D28D9', btn:'#7C3AED' },
-        { bg:'#F0FDF4', border:'#22C55E', text:'#15803D', btn:'#16A34A' },
-        { bg:'#FFF1F2', border:'#F43F5E', text:'#BE123C', btn:'#E11D48' },
-        { bg:'#F0FDFA', border:'#14B8A6', text:'#0F766E', btn:'#0D9488' },
-    ];
-    let splitCuentas    = [];
-    let splitNextId     = 1;
-    let splitAssignment = {};
-    let splitIsActive   = false;
+    let splitPending  = [];  // ítems pendientes de pago [{id,nombre,precio,cantidad}]
+    let splitSel      = {};  // {item_id: qty} selección del cliente actual
+    let splitPayState = { method:'efectivo', received:0, cliente:{tipo:'boleta',doc:'',nombre:''} };
+    let splitIsActive = false;
 
     window.showCheckoutModal = function() {
         if (!currentMesa || carrito.length === 0) return;
@@ -459,12 +615,9 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
         checkoutState.received = 0;
         checkoutState.total    = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
         checkoutState.cliente  = { tipo: 'boleta', doc: '', nombre: '' };
-        splitNextId    = 1;
-        splitCuentas   = [
-            { id: splitNextId++, method:'efectivo', received:0, cliente:{tipo:'boleta',doc:'',nombre:''}, paid:false },
-            { id: splitNextId++, method:'efectivo', received:0, cliente:{tipo:'boleta',doc:'',nombre:''}, paid:false },
-        ];
-        splitAssignment = {};
+        splitPending  = carrito.map(i => ({...i}));
+        splitSel      = {};
+        splitPayState = { method:'efectivo', received:0, cliente:{tipo:'boleta',doc:'',nombre:''} };
         document.getElementById('checkout-mesa-name').innerText = currentMesa.nombre || ('Mesa ' + currentMesa.id);
         document.getElementById('cliente-doc').value    = '';
         document.getElementById('cliente-nombre').value = '';
@@ -480,11 +633,17 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
 
     function _showSingleMode() {
         splitIsActive = false;
+        // Re-sync desde carrito actual por si se pagaron ítems en split
+        checkoutState.total    = carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+        checkoutState.received = 0;
+        checkoutState.cliente  = { tipo: checkoutState.cliente?.tipo || 'boleta', doc: '', nombre: '' };
         document.getElementById('checkout-single').style.display = 'flex';
         document.getElementById('checkout-split').style.display  = 'none';
         const btn = document.getElementById('btn-split-toggle');
         btn.className = 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 border-gray-300 text-gray-600 active:scale-95 transition-all';
         btn.innerHTML = '✂️ Dividir cuenta';
+        renderCheckoutItems();
+        updateCheckoutUI();
     }
 
     function _showSplitMode() {
@@ -577,7 +736,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
             });
             const data = await res.json();
             if (data.success) {
-                carrito = []; renderizarTicket(); hideCheckoutModal();
+                carrito = []; carritoHistorial = []; renderizarTicket(); hideCheckoutModal();
                 if (currentMesa) { currentMesa.estado = 'libre'; updateMesaUI(); }
                 if (window.loadMesas) window.loadMesas();
             } else { alert('Error: ' + (data.messages?.error || data.message)); }
@@ -585,260 +744,226 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
         btn.innerHTML = 'CONFIRMAR PAGO'; btn.disabled = false;
     }
 
-    // ── Split mode — N cuentas dinámicas ─────────────────────────────────────
+    // ── Split mode — cobro secuencial por cliente ────────────────────────────
 
-    function _cuentaById(id)   { return splitCuentas.find(c => c.id === id); }
-    function _cuentaIdx(id)    { return splitCuentas.findIndex(c => c.id === id); }
-
-    function _unassignedQty(item) {
-        const assigned = Object.values(splitAssignment[item.id] || {}).reduce((s,q) => s+q, 0);
-        return item.cantidad - assigned;
-    }
-
-    function _cuentaItems(cid) {
-        return carrito.flatMap(item => {
-            const q = (splitAssignment[item.id] || {})[cid] || 0;
-            return q > 0 ? [{...item, cantidad: q}] : [];
-        });
-    }
-
-    function _cuentaTotal(cid) {
-        return _cuentaItems(cid).reduce((s,i) => s + i.precio * i.cantidad, 0);
+    function _splitSelTotal() {
+        return Object.entries(splitSel).reduce((s, [id, qty]) => {
+            const item = splitPending.find(i => i.id == id);
+            return s + (item ? item.precio * qty : 0);
+        }, 0);
     }
 
     function renderSplitMode() {
         renderSplitItems();
-        renderCuentasPanel();
+        renderSplitPayPanel();
     }
 
     function renderSplitItems() {
-        const list = document.getElementById('split-items-list');
-        list.innerHTML = carrito.map(item => {
-            const unassigned = _unassignedQty(item);
-            let ctrl = '';
-            if (item.cantidad === 1) {
-                const btns = splitCuentas.map((c, idx) => {
-                    const pal   = CUENTA_PALETTE[idx % CUENTA_PALETTE.length];
-                    const owned = ((splitAssignment[item.id] || {})[c.id] || 0) === 1;
-                    return `<button onclick="toggleItemCuenta(${item.id},${c.id})"
-                        style="${owned ? 'background:'+pal.btn+';color:white;border-color:'+pal.btn : 'background:white;color:#6B7280;border-color:#D1D5DB'}"
-                        class="px-3 py-2 text-xs font-bold rounded-xl border-2 active:scale-95 transition-all">C${idx+1}</button>`;
-                }).join('');
-                ctrl = `<div class="flex gap-1.5 flex-wrap mt-2">${btns}</div>`;
-            } else {
-                const rows = splitCuentas.map((c, idx) => {
-                    const pal = CUENTA_PALETTE[idx % CUENTA_PALETTE.length];
-                    const qty = (splitAssignment[item.id] || {})[c.id] || 0;
-                    return `<div class="flex items-center gap-1.5 mt-1">
-                        <span style="background:${pal.btn};color:white" class="text-xs font-bold rounded-md px-2 py-0.5 w-7 text-center shrink-0">C${idx+1}</span>
-                        <button onclick="adjustItemCuenta(${item.id},${c.id},-1)" class="w-7 h-7 bg-gray-100 rounded-lg font-bold text-gray-700 active:scale-95 text-lg leading-none">−</button>
-                        <span class="w-6 text-center font-black text-sm" style="color:${pal.text}">${qty}</span>
-                        <button onclick="adjustItemCuenta(${item.id},${c.id},+1)" class="w-7 h-7 bg-gray-100 rounded-lg font-bold text-gray-700 active:scale-95 text-lg leading-none">+</button>
-                    </div>`;
-                }).join('');
-                ctrl = `<div class="mt-1">${rows}</div>`;
-            }
-            const status = unassigned > 0
-                ? `<p class="text-xs text-red-400 mt-1.5 font-semibold">⚠ Sin asignar: ${unassigned}</p>`
-                : `<p class="text-xs text-green-600 mt-1.5">✓ Listo</p>`;
-            return `<div class="p-3 border-b border-gray-100 last:border-0">
-                <div class="flex justify-between text-sm font-semibold text-gray-800">
-                    <span>${item.cantidad}× ${item.nombre}</span>
-                    <span class="text-gray-400 text-xs ml-2 shrink-0">S/${(item.precio*item.cantidad).toFixed(2)}</span>
-                </div>${ctrl}${status}</div>`;
+        const list     = document.getElementById('split-items-list');
+        const selTotal = _splitSelTotal();
+        list.innerHTML = (splitPending.length === 0 ? '<p class="p-4 text-center text-gray-400 text-sm">Sin ítems pendientes</p>' :
+            splitPending.map(item => {
+                const sel        = splitSel[item.id] || 0;
+                const allSel     = sel === item.cantidad;
+                const selSubtot  = (item.precio * sel).toFixed(2);
+                return `<div class="p-3 border-b border-gray-100 last:border-0">
+                    <div class="flex justify-between items-start">
+                        <span class="text-sm font-semibold text-gray-800 flex-1 pr-2">${item.nombre}</span>
+                        <span class="text-xs text-gray-400 shrink-0">S/${item.precio.toFixed(2)} c/u</span>
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <button onclick="setSplitQty(${item.id},-1)"
+                            class="w-8 h-8 bg-gray-100 rounded-lg font-bold text-gray-600 active:scale-95 text-lg leading-none"
+                            ${sel<=0?'disabled style="opacity:0.3"':''}>−</button>
+                        <div class="text-center min-w-[56px]">
+                            <span class="font-black text-base ${sel>0?'text-blue-600':'text-gray-300'}">${sel}</span>
+                            <span class="text-gray-400 text-sm"> / ${item.cantidad}</span>
+                        </div>
+                        <button onclick="setSplitQty(${item.id},+1)"
+                            class="w-8 h-8 bg-gray-100 rounded-lg font-bold text-gray-600 active:scale-95 text-lg leading-none"
+                            ${sel>=item.cantidad?'disabled style="opacity:0.3"':''}>+</button>
+                        <button onclick="setSplitAll(${item.id})"
+                            style="${allSel?'background:#2563EB;color:white':'background:#EFF6FF;color:#2563EB'}"
+                            class="ml-auto px-3 py-1.5 text-xs font-bold rounded-lg active:scale-95">
+                            ${allSel?'✓ Todo':'Todo'}</button>
+                    </div>
+                    ${sel>0?`<p class="text-xs text-blue-600 font-semibold mt-1">→ S/${selSubtot}</p>`:''}
+                </div>`;
+            }).join('')) +
+        `<div class="sticky bottom-0 bg-white border-t-2 border-blue-100 p-3 flex justify-between items-center">
+            <span class="text-sm font-bold text-gray-600">Total seleccionado</span>
+            <span class="text-xl font-black ${selTotal>0?'text-blue-600':'text-gray-300'}">S/${selTotal.toFixed(2)}</span>
+        </div>`;
+    }
+
+    function renderSplitPayPanel() {
+        const panel    = document.getElementById('split-cuentas-panel');
+        const selTotal = _splitSelTotal();
+        const hasSel   = selTotal > 0;
+        const isEf     = splitPayState.method === 'efectivo';
+        const recv     = splitPayState.received;
+        const diff     = recv - selTotal;
+        const vuelto   = Math.max(0, diff);
+        const ok       = !isEf || recv >= selTotal;
+
+        const pendingQty = splitPending.reduce((s,i) => s+i.cantidad, 0);
+        const selQty     = Object.values(splitSel).reduce((s,q) => s+q, 0);
+        const remaining  = pendingQty - selQty;
+
+        const methodBtns = ['efectivo','tarjeta','monedero'].map(m => {
+            const icons  = {efectivo:'💵', tarjeta:'💳', monedero:'📱'};
+            const labels = {efectivo:'Efectivo', tarjeta:'Tarjeta', monedero:'Monedero'};
+            const active = splitPayState.method === m;
+            return `<button onclick="setSplitMethod('${m}')"
+                style="${active?'background:#2563EB;color:white':'background:white;color:#6B7280;border:1px solid #D1D5DB'}"
+                class="flex-1 py-2 text-xs font-bold rounded-xl active:scale-95 flex flex-col items-center gap-0.5">
+                ${icons[m]}<span>${labels[m]}</span></button>`;
         }).join('');
-    }
 
-    function renderCuentasPanel() {
-        const panel = document.getElementById('split-cuentas-panel');
-        const canRemove = splitCuentas.length > 2;
-        panel.innerHTML = splitCuentas.map((c, idx) => {
-            const pal   = CUENTA_PALETTE[idx % CUENTA_PALETTE.length];
-            const items = _cuentaItems(c.id);
-            const total = items.reduce((s,i) => s + i.precio*i.cantidad, 0);
-            c.total     = total;
-            const isEf  = c.method === 'efectivo';
-            const canPay = items.length > 0 && !c.paid;
-            const ok    = !isEf || c.received >= total;
-
-            const itemsSummary = items.length
-                ? items.map(i => `<span>${i.cantidad}× ${i.nombre} <b>S/${(i.precio*i.cantidad).toFixed(2)}</b></span>`).join('<br>')
-                : '<span style="color:#9CA3AF">Sin ítems asignados</span>';
-
-            const methods = ['efectivo','tarjeta','monedero'].map(m => {
-                const icons  = { efectivo:'💵', tarjeta:'💳', monedero:'📱' };
-                const labels = { efectivo:'Efectivo', tarjeta:'Tarjeta', monedero:'Monedero' };
-                return `<button onclick="setCuentaMethod(${c.id},'${m}')"
-                    style="${c.method===m ? 'background:'+pal.btn+';color:white' : 'background:white;color:#6B7280;border:1px solid #D1D5DB'}"
-                    class="flex-1 py-1.5 text-xs font-bold rounded-xl active:scale-95 flex flex-col items-center">${icons[m]} ${labels[m]}</button>`;
-            }).join('');
-
-            const cashCtrl = isEf ? `
-                <div class="flex flex-wrap gap-1">
-                    ${[10,20,50,100].map(a => `<button onclick="addCuentaCash(${c.id},${a})" class="px-2 py-1.5 text-xs font-bold bg-white border border-gray-200 rounded-lg active:scale-95">S/${a}</button>`).join('')}
-                    <button onclick="addCuentaCash(${c.id},'exact')" style="color:${pal.text};background:${pal.bg}" class="px-2 py-1.5 text-xs font-bold rounded-lg border active:scale-95">Exacto</button>
-                    <button onclick="clearCuentaCash(${c.id})" class="px-2 py-1.5 text-xs font-bold bg-red-50 text-red-500 rounded-lg active:scale-95">⌫</button>
+        const cashCtrl = isEf ? `
+            <div class="flex flex-wrap gap-1.5">
+                ${[10,20,50,100].map(a=>`<button onclick="addSplitCash(${a})" class="px-3 py-2 text-xs font-bold bg-white border border-gray-200 rounded-lg active:scale-95">S/${a}</button>`).join('')}
+                <button onclick="addSplitCash('exact')" class="px-3 py-2 text-xs font-bold bg-blue-50 text-blue-600 rounded-lg border border-blue-200 active:scale-95">Exacto</button>
+                <button onclick="clearSplitCash()" class="px-3 py-2 text-xs font-bold bg-red-50 text-red-500 rounded-lg active:scale-95">⌫</button>
+            </div>
+            <div class="bg-white rounded-xl p-3 border border-gray-100 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-500">Recibido</span>
+                    <span class="font-bold text-gray-800">S/${recv.toFixed(2)}</span>
                 </div>
-                <p class="text-xs font-semibold" style="color:${pal.text}">
-                    Recibido: <b>S/${c.received.toFixed(2)}</b> | Vuelto:
-                    <b style="color:${c.received>=total?'#15803D':'#DC2626'}">S/${Math.max(0,c.received-total).toFixed(2)}</b>
-                </p>` : `<p class="text-xs font-semibold" style="color:${pal.text}">Total: <b>S/${total.toFixed(2)}</b></p>`;
-
-            const removeBtn = (canRemove && !c.paid)
-                ? `<button onclick="removeCuenta(${c.id})" class="text-gray-300 hover:text-red-400 text-lg leading-none shrink-0 ml-1">✕</button>`
-                : '';
-
-            const payBtn = c.paid
-                ? `<div style="background:${pal.btn};opacity:0.7" class="w-full py-2.5 rounded-xl text-white text-sm font-bold text-center">✅ Cuenta ${idx+1} cobrada</div>`
-                : `<button id="btn-pagar-c-${c.id}" onclick="pagarCuentaN(${c.id})"
-                    style="background:${pal.btn};${(!canPay||!ok)?'opacity:0.4;pointer-events:none':''}"
-                    class="w-full py-2.5 rounded-xl text-white text-sm font-bold active:scale-95">
-                    COBRAR CUENTA ${idx+1}
-                </button>`;
-
-            return `<div style="background:${pal.bg};border-bottom:2px solid ${pal.border}50" class="p-3 flex flex-col gap-2">
-                <div class="flex items-center justify-between gap-2">
-                    <h3 style="color:${pal.text}" class="font-black flex items-center gap-2 text-sm">
-                        <span style="background:${pal.btn}" class="w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-black shrink-0">${idx+1}</span>
-                        Cuenta ${idx+1}${removeBtn}
-                    </h3>
-                    <span style="color:${pal.text}" class="text-base font-black shrink-0">S/${total.toFixed(2)}</span>
+                <div class="flex justify-between mt-1">
+                    <span class="text-gray-500">Vuelto</span>
+                    <span class="font-bold ${diff>=0?'text-green-600':'text-red-500'}">${diff>=0?'S/'+vuelto.toFixed(2):'Faltan S/'+Math.abs(diff).toFixed(2)}</span>
                 </div>
-                <div class="text-xs bg-white rounded-lg px-2 py-1.5 leading-5" style="color:#374151;border:1px solid ${pal.border}40">${itemsSummary}</div>
-                <div class="flex gap-1">
-                    <button onclick="setCuentaDocTipo(${c.id},'boleta')"
-                        style="${c.cliente.tipo==='boleta' ? 'background:'+pal.btn+';color:white' : 'background:white;color:#6B7280;border:1px solid #D1D5DB'}"
-                        class="flex-1 py-1 text-xs font-bold rounded-lg">Boleta</button>
-                    <button onclick="setCuentaDocTipo(${c.id},'factura')"
-                        style="${c.cliente.tipo==='factura' ? 'background:'+pal.btn+';color:white' : 'background:white;color:#6B7280;border:1px solid #D1D5DB'}"
-                        class="flex-1 py-1 text-xs font-bold rounded-lg">Factura</button>
-                </div>
-                <input type="text" inputmode="numeric" placeholder="${c.cliente.tipo==='factura'?'RUC (11 dígitos)':'DNI (8 dígitos)'}" maxlength="11"
-                    style="border:1px solid ${pal.border}60" value="${c.cliente.doc}"
-                    class="w-full rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none"
-                    oninput="setCuentaDoc(${c.id},this.value)">
-                <input type="text" placeholder="Nombre (opcional)" value="${c.cliente.nombre}"
-                    style="border:1px solid ${pal.border}60"
-                    class="w-full rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none"
-                    oninput="setCuentaNombre(${c.id},this.value)">
-                <div class="flex gap-1">${methods}</div>
-                ${cashCtrl}
-                ${payBtn}
+            </div>` : `
+            <div class="bg-white rounded-xl p-3 border border-gray-100 text-sm flex justify-between">
+                <span class="text-gray-500">Total</span>
+                <span class="font-bold text-gray-800">S/${selTotal.toFixed(2)}</span>
             </div>`;
-        }).join('') + (splitCuentas.length < 6 ? `
-            <div class="p-3">
-                <button onclick="addCuenta()" class="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 font-bold text-sm active:scale-95">
-                    ➕ Agregar cuenta
-                </button>
-            </div>` : '');
+
+        panel.innerHTML = `<div class="p-4 flex flex-col gap-3">
+            <div class="bg-blue-50 rounded-xl p-3">
+                <p class="text-xs text-blue-500 font-bold uppercase tracking-wide">Este cobro</p>
+                <p class="text-2xl font-black text-blue-700">S/${selTotal.toFixed(2)}</p>
+                ${remaining>0
+                    ? `<p class="text-xs text-gray-500 mt-0.5">Quedan ${remaining} ítem(s) pendiente(s) después</p>`
+                    : hasSel ? `<p class="text-xs text-green-600 font-bold mt-0.5">✓ Último cobro — se liberará la mesa</p>` : ''}
+            </div>
+            <div class="flex gap-1">
+                <button onclick="setSplitDocTipo('boleta')"
+                    class="flex-1 py-1.5 text-xs font-bold rounded-lg ${splitPayState.cliente.tipo==='boleta'?'bg-blue-600 text-white':'bg-white text-gray-500 border border-gray-200'}">Boleta</button>
+                <button onclick="setSplitDocTipo('factura')"
+                    class="flex-1 py-1.5 text-xs font-bold rounded-lg ${splitPayState.cliente.tipo==='factura'?'bg-blue-600 text-white':'bg-white text-gray-500 border border-gray-200'}">Factura</button>
+            </div>
+            <input type="text" inputmode="numeric"
+                placeholder="${splitPayState.cliente.tipo==='factura'?'RUC (11 dígitos)':'DNI (8 dígitos, opcional)'}" maxlength="11"
+                class="w-full rounded-lg px-3 py-2 text-sm bg-white border border-gray-200 focus:outline-none focus:border-blue-400"
+                value="${splitPayState.cliente.doc}" oninput="setSplitDoc(this.value)">
+            <input type="text" placeholder="Nombre (opcional)"
+                class="w-full rounded-lg px-3 py-2 text-sm bg-white border border-gray-200 focus:outline-none focus:border-blue-400"
+                value="${splitPayState.cliente.nombre}" oninput="setSplitNombre(this.value)">
+            <div class="flex gap-1">${methodBtns}</div>
+            ${cashCtrl}
+            <button onclick="pagarSplit()" id="btn-pagar-split"
+                style="${(!hasSel||!ok)?'opacity:0.4;pointer-events:none':''}"
+                class="w-full py-3 bg-blue-600 text-white font-bold rounded-xl active:scale-95 text-sm">
+                COBRAR S/${selTotal.toFixed(2)}
+            </button>
+        </div>`;
     }
 
-    window.addCuenta = function() {
-        if (splitCuentas.length >= 6) return;
-        splitCuentas.push({ id: splitNextId++, method:'efectivo', received:0,
-                            cliente:{tipo:'boleta',doc:'',nombre:''}, paid:false });
+    window.setSplitQty = function(itemId, delta) {
+        const item = splitPending.find(i => i.id == itemId); if (!item) return;
+        const curr   = splitSel[itemId] || 0;
+        const newQty = Math.max(0, Math.min(item.cantidad, curr + delta));
+        if (newQty === 0) delete splitSel[itemId]; else splitSel[itemId] = newQty;
         renderSplitMode();
     }
 
-    window.removeCuenta = function(id) {
-        const hasItems = carrito.some(item => ((splitAssignment[item.id] || {})[id] || 0) > 0);
-        if (hasItems) { alert('Retira los ítems de esta cuenta antes de eliminarla'); return; }
-        splitCuentas = splitCuentas.filter(c => c.id !== id);
+    window.setSplitAll = function(itemId) {
+        const item = splitPending.find(i => i.id == itemId); if (!item) return;
+        if ((splitSel[itemId] || 0) === item.cantidad) delete splitSel[itemId];
+        else splitSel[itemId] = item.cantidad;
         renderSplitMode();
     }
 
-    window.toggleItemCuenta = function(itemId, cuentaId) {
-        if (!splitAssignment[itemId]) splitAssignment[itemId] = {};
-        const curr = splitAssignment[itemId][cuentaId] || 0;
-        splitAssignment[itemId] = {};
-        if (!curr) splitAssignment[itemId][cuentaId] = 1;
-        renderSplitMode();
+    window.setSplitMethod = function(m) {
+        splitPayState.method = m; splitPayState.received = 0;
+        renderSplitPayPanel();
     }
 
-    window.adjustItemCuenta = function(itemId, cuentaId, delta) {
-        const item = carrito.find(i => i.id == itemId); if (!item) return;
-        if (!splitAssignment[itemId]) splitAssignment[itemId] = {};
-        const curr = splitAssignment[itemId][cuentaId] || 0;
-        if (delta > 0 && _unassignedQty(item) <= 0) return;
-        const newQty = Math.max(0, curr + delta);
-        if (newQty === 0) delete splitAssignment[itemId][cuentaId];
-        else splitAssignment[itemId][cuentaId] = newQty;
-        renderSplitMode();
+    window.setSplitDocTipo = function(tipo) {
+        splitPayState.cliente.tipo = tipo; renderSplitPayPanel();
     }
 
-    window.setCuentaMethod = function(id, m) {
-        const c = _cuentaById(id); if (!c) return;
-        c.method = m; renderSplitMode();
+    window.addSplitCash = function(amount) {
+        const total = _splitSelTotal();
+        splitPayState.received = amount === 'exact' ? total : splitPayState.received + amount;
+        renderSplitPayPanel();
     }
 
-    window.addCuentaCash = function(id, amount) {
-        const c = _cuentaById(id); if (!c) return;
-        c.received = amount === 'exact' ? _cuentaTotal(id) : c.received + amount;
-        renderSplitMode();
-    }
+    window.clearSplitCash = function() { splitPayState.received = 0; renderSplitPayPanel(); }
 
-    window.clearCuentaCash = function(id) {
-        const c = _cuentaById(id); if (!c) return;
-        c.received = 0; renderSplitMode();
-    }
+    window.setSplitDoc    = function(val) { splitPayState.cliente.doc    = val; }
+    window.setSplitNombre = function(val) { splitPayState.cliente.nombre = val; }
 
-    window.setCuentaDocTipo = function(id, tipo) {
-        const c = _cuentaById(id); if (!c) return;
-        c.cliente.tipo = tipo; renderSplitMode();
-    }
-
-    window.setCuentaDoc    = function(id, val) { const c = _cuentaById(id); if (c) c.cliente.doc    = val; }
-    window.setCuentaNombre = function(id, val) { const c = _cuentaById(id); if (c) c.cliente.nombre = val; }
-
-    window.pagarCuentaN = async function(id) {
-        const c = _cuentaById(id); if (!c || c.paid) return;
-        const items = _cuentaItems(id);
+    window.pagarSplit = async function() {
+        const selTotal = _splitSelTotal();
+        if (selTotal <= 0) return;
+        if (splitPayState.method === 'efectivo' && splitPayState.received < selTotal) {
+            alert('Monto insuficiente'); return;
+        }
+        const items = Object.entries(splitSel).flatMap(([id, qty]) => {
+            const item = splitPending.find(i => i.id == id);
+            return item ? [{...item, cantidad: qty}] : [];
+        });
         if (!items.length) return;
-        const total = _cuentaTotal(id);
-        if (c.method === 'efectivo' && c.received < total) { alert('Monto insuficiente'); return; }
 
-        // Solo liberar si TODOS los ítems quedan cubiertos por cuentas pagadas (incluyendo la actual)
-        const liberarMesa = carrito.every(item => {
-            const assigned = splitAssignment[item.id] || {};
-            let covered = 0;
-            for (const [cid, qty] of Object.entries(assigned)) {
-                const cuenta = _cuentaById(parseInt(cid));
-                if (cuenta && (cuenta.paid || parseInt(cid) === id)) covered += qty;
-            }
-            return covered >= item.cantidad;
+        const liberarMesa = !splitPending.some(item => {
+            const selQty = splitSel[item.id] || 0;
+            return item.cantidad - selQty > 0;
         });
 
-        const btn = document.getElementById(`btn-pagar-c-${id}`);
+        const btn = document.getElementById('btn-pagar-split');
         if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Procesando...'; }
 
-        const cliente = (c.cliente.doc || c.cliente.nombre) ? c.cliente : null;
+        const cliente = (splitPayState.cliente.doc || splitPayState.cliente.nombre) ? splitPayState.cliente : null;
         try {
             const res = await fetch('<?= base_url('api/cobrar_pedido') ?>', {
                 method: 'POST', headers: {'Content-Type':'application/json'},
                 body: JSON.stringify({
-                    id_mesa: currentMesa.id, metodo: c.method,
-                    total, recibido: c.method === 'efectivo' ? c.received : total,
+                    id_mesa: currentMesa.id, metodo: splitPayState.method,
+                    total: selTotal,
+                    recibido: splitPayState.method === 'efectivo' ? splitPayState.received : selTotal,
                     items, liberar_mesa: liberarMesa, cliente,
                 })
             });
             const data = await res.json();
             if (data.success) {
-                // Eliminar del carrito los ítems que acaban de pagarse
-                for (const paidItem of items) {
-                    const cartItem = carrito.find(i => i.id === paidItem.id);
-                    if (cartItem) {
-                        cartItem.cantidad -= paidItem.cantidad;
-                        if (cartItem.cantidad <= 0) {
-                            carrito = carrito.filter(i => i.id !== paidItem.id);
-                            delete splitAssignment[paidItem.id];
-                        } else {
-                            if (splitAssignment[paidItem.id]) delete splitAssignment[paidItem.id][id];
-                        }
+                // Descontar ítems pagados de splitPending y carrito; registrar en historial
+                for (const [id, qty] of Object.entries(splitSel)) {
+                    const pidx = splitPending.findIndex(i => i.id == id);
+                    if (pidx >= 0) {
+                        splitPending[pidx].cantidad -= qty;
+                        if (splitPending[pidx].cantidad <= 0) splitPending.splice(pidx, 1);
+                    }
+                    const cidx = carrito.findIndex(i => i.id == id);
+                    if (cidx >= 0) {
+                        // Mover al historial visible
+                        const hidx = carritoHistorial.findIndex(h => h.id == id);
+                        if (hidx >= 0) carritoHistorial[hidx].cantidad += parseInt(qty);
+                        else carritoHistorial.push({...carrito[cidx], cantidad: parseInt(qty)});
+                        // Reducir pendiente
+                        carrito[cidx].cantidad -= qty;
+                        if (carrito[cidx].cantidad <= 0) carrito.splice(cidx, 1);
                     }
                 }
-                c.paid = true;
+                splitSel = {};
+                splitPayState.received = 0;
+                splitPayState.cliente  = { tipo:'boleta', doc:'', nombre:'' };
+
                 if (liberarMesa) {
-                    carrito = []; renderizarTicket(); hideCheckoutModal();
+                    carrito = []; carritoHistorial = []; renderizarTicket(); hideCheckoutModal();
                     if (currentMesa) { currentMesa.estado = 'libre'; updateMesaUI(); }
                     if (window.loadMesas) window.loadMesas();
                 } else {
@@ -847,11 +972,11 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
                 }
             } else {
                 alert('Error: ' + (data.messages?.error || data.message));
-                if (btn) { btn.disabled = false; btn.innerHTML = `COBRAR CUENTA ${_cuentaIdx(id)+1}`; }
+                if (btn) { btn.disabled = false; btn.innerHTML = `COBRAR S/${selTotal.toFixed(2)}`; }
             }
         } catch(e) {
             alert('Error de conexión');
-            if (btn) { btn.disabled = false; btn.innerHTML = `COBRAR CUENTA ${_cuentaIdx(id)+1}`; }
+            if (btn) { btn.disabled = false; btn.innerHTML = `COBRAR S/${selTotal.toFixed(2)}`; }
         }
     }
 
@@ -997,8 +1122,8 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
                     <!-- Izquierda: asignar items -->
                     <div class="w-5/12 bg-white border-r border-gray-200 flex flex-col">
                         <div class="px-4 py-2 bg-gray-50 border-b border-gray-100 shrink-0">
-                            <p class="text-xs font-bold text-gray-500 uppercase">Asignar ítems a cada cuenta</p>
-                            <p class="text-xs text-gray-400 mt-0.5">Toca C1 / C2 / C3... para asignar</p>
+                            <p class="text-xs font-bold text-gray-500 uppercase">Ítems pendientes de pago</p>
+                            <p class="text-xs text-gray-400 mt-0.5">Selecciona lo que paga este cliente</p>
                         </div>
                         <div class="flex-1 overflow-y-auto" id="split-items-list"></div>
                     </div>
@@ -1057,3 +1182,60 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
     </div>
 </div>
 <?php endif; ?>
+
+<!-- Modal: Acción de mesa con comanda activa (visible para todos los roles) -->
+<div id="mesa-action-modal" class="fixed inset-0 hidden" style="z-index:200">
+    <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4" style="z-index:201">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+            <div class="bg-indigo-600 p-5 text-white text-center">
+                <span class="text-4xl">🍽️</span>
+                <h2 class="text-xl font-bold mt-2">Mesa <span id="action-mesa-nombre"></span></h2>
+                <p class="text-indigo-200 text-sm mt-0.5">Tiene una comanda en curso</p>
+            </div>
+            <div class="p-4 space-y-3">
+                <button onclick="mesaActionAgregar()"
+                    class="w-full py-4 px-4 rounded-xl font-bold text-blue-700 bg-blue-50 border-2 border-blue-200 hover:bg-blue-100 active:scale-95 transition-all text-left flex items-center gap-3">
+                    <span class="text-2xl">➕</span>
+                    <div>
+                        <div class="font-bold">Agregar más productos</div>
+                        <div class="text-xs text-blue-400 font-normal">Continuar pidiendo</div>
+                    </div>
+                </button>
+                <button id="btn-action-pre-cuenta" onclick="mesaActionPreCuenta()"
+                    class="w-full py-4 px-4 rounded-xl font-bold text-amber-700 bg-amber-50 border-2 border-amber-200 hover:bg-amber-100 active:scale-95 transition-all text-left flex items-center gap-3">
+                    <span class="text-2xl">🧾</span>
+                    <div>
+                        <div class="font-bold">Solicitar Pre-Cuenta</div>
+                        <div class="text-xs text-amber-500 font-normal">El cliente está listo para pagar</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Pre-Cuenta (visible para todos los roles) -->
+<div id="pre-cuenta-modal" class="fixed inset-0 hidden" style="z-index:200">
+    <div class="fixed inset-0 bg-gray-900/70 backdrop-blur-sm"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4" style="z-index:201">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+            <div class="p-5 text-white text-center" style="background:#d97706">
+                <span class="text-3xl">🧾</span>
+                <h2 class="text-lg font-bold mt-1">Pre-Cuenta</h2>
+                <p class="text-amber-100 text-sm" id="pre-cuenta-mesa"></p>
+            </div>
+            <div class="p-4 max-h-64 overflow-y-auto custom-scrollbar" id="pre-cuenta-items"></div>
+            <div class="px-4 py-3 border-t border-gray-100 flex justify-between items-center font-bold text-lg">
+                <span class="text-gray-700">Total</span>
+                <span id="pre-cuenta-total" class="text-gray-900"></span>
+            </div>
+            <div class="p-4 bg-gray-50 border-t border-gray-100">
+                <button onclick="hidePreCuentaModal()"
+                    class="w-full py-3 rounded-xl font-bold text-gray-600 bg-gray-200 hover:bg-gray-300 active:scale-95 transition-all">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

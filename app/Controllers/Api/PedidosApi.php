@@ -28,6 +28,7 @@ class PedidosApi extends BaseApiController
             'precio'   => (float) $d['precio'],
             'cantidad' => (int)   $d['cantidad'],
             'subtotal' => (float) $d['precio'] * (int) $d['cantidad'],
+            'pagado'   => (bool)  ($d['pagado'] ?? false),
         ], $detalles);
 
         return $this->respond(['success' => true, 'pedido' => $pedido, 'items' => $items]);
@@ -66,7 +67,7 @@ class PedidosApi extends BaseApiController
             $mesaModel->update($idMesa, ['estado' => 'ocupada']);
         } else {
             $idPedido = $pedido['id'];
-            $detalleModel->where('id_pedido', $idPedido)->delete();
+            $detalleModel->where('id_pedido', $idPedido)->where('pagado', 0)->delete();
         }
 
         $total     = 0;
