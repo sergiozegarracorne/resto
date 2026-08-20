@@ -6,21 +6,11 @@
     </div>
 
     <!-- Fila 2: Mesero y Estado -->
-    <div class="flex justify-between items-center text-xs">
-        <div class="flex items-center gap-1 text-gray-600">
-            <span class="text-lg">💁</span>
-            <span class="font-bold"><?= session('usuario_turno')['nombre'] ?? 'Sin Asignar' ?></span>
-        </div>
-        <div class="flex items-center gap-1">
-            <?php if (in_array(session('usuario_turno')['rol'] ?? '', ['admin','sudo','supervisor'], true)): ?>
-            <a href="<?= base_url('panel') ?>"
-               title="Panel de Control"
-               class="w-6 h-6 flex items-center justify-center rounded-full bg-gray-200 hover:bg-indigo-100 hover:text-indigo-700 transition-colors text-sm">
-                ⚙️
-            </a>
-            <?php endif; ?>
-            <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium text-[10px]">En Proceso</span>
-        </div>
+    <div class="flex justify-center items-center text-xs">
+        <div class="flex items-center justify-center gap-1 text-gray-600">
+            <span class="text-xs">Usuario: </span>
+            <span class="font-bold text-sm text-red-500 uppercase"><?= session('usuario_turno')['nombre'] ?? 'Sin Asignar' ?></span>
+        </div>       
     </div>
 
     <!-- Fila 2.5: Mesa Activa -->
@@ -38,9 +28,7 @@
         <span class="text-[10px] text-gray-500 uppercase font-bold px-1">Tarifa:</span>
         <select class="text-xs font-bold text-indigo-700 bg-transparent outline-none cursor-pointer flex-1 text-right">
             <option value="general">CARTA GENERAL</option>
-            <option value="promo">PROMOCIÓN</option>
             <option value="personal">PERSONAL</option>
-            <option value="socio">SOCIO / VIP</option>
         </select>
     </div>
 </div>

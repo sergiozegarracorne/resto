@@ -119,6 +119,62 @@ HTML;
     }
 }
 
+if (!function_exists('accion_btn')) {
+    /**
+     * Genera un botón o link para la barra de acciones.
+     *
+     * $cfg keys:
+     *   label   string  Texto visible
+     *   icon    string  Emoji o carácter
+     *   color   string  red|indigo|emerald|orange|amber|slate
+     *   type    string  'button' (default) | 'link'
+     *   onclick string  JS para type=button
+     *   href    string  URL para type=link (se pasa por base_url)
+     *   id      string  (opcional) id HTML
+     *   attrs   string  (opcional) atributos HTML extra
+     */
+    function accion_btn(array $cfg): string
+    {
+        $label  = $cfg['label'] ?? '';
+        $icon   = $cfg['icon']  ?? '';
+        $id     = isset($cfg['id']) ? " id=\"{$cfg['id']}\"" : '';
+        $attrs  = $cfg['attrs'] ?? '';
+
+        $paleta = [
+            'red'     => 'bg-white border border-red-200     text-red-500     hover:shadow-md hover:border-red-400     hover:bg-red-50',
+            'indigo'  => 'bg-white border border-indigo-200  text-indigo-500  hover:shadow-md hover:border-indigo-400  hover:bg-indigo-50',
+            'emerald' => 'bg-white border border-emerald-200 text-emerald-600 hover:shadow-md hover:border-emerald-400 hover:bg-emerald-50',
+            'orange'  => 'bg-white border border-orange-200  text-orange-500  hover:shadow-md hover:border-orange-400  hover:bg-orange-50',
+            'amber'   => 'bg-white border border-amber-200   text-amber-600   hover:shadow-md hover:border-amber-400   hover:bg-amber-50',
+            'slate'   => 'bg-slate-800 border border-slate-700 text-slate-200 shadow-lg hover:shadow-xl hover:bg-slate-700 hover:text-white',
+        ];
+
+        $color   = $cfg['color'] ?? 'indigo';
+        $base    = ($paleta[$color] ?? $paleta['indigo']) . ' font-medium shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center gap-1 group';
+        $iconCls = $color === 'slate'
+            ? 'text-2xl group-hover:scale-110 group-hover:rotate-90 transition-transform'
+            : 'text-2xl group-hover:scale-110 transition-transform filter grayscale group-hover:grayscale-0';
+
+        if (($cfg['type'] ?? 'button') === 'link') {
+            $href = base_url($cfg['href'] ?? '/');
+            return <<<HTML
+            <a href="{$href}"{$id} class="{$base}" {$attrs}>
+                <span class="{$iconCls}">{$icon}</span>
+                <span class="text-xs font-bold tracking-wide">{$label}</span>
+            </a>
+HTML;
+        }
+
+        $onclick = $cfg['onclick'] ?? '';
+        return <<<HTML
+        <button onclick="{$onclick}"{$id} class="{$base}" {$attrs}>
+            <span class="{$iconCls}">{$icon}</span>
+            <span class="text-xs font-bold tracking-wide">{$label}</span>
+        </button>
+HTML;
+    }
+}
+
 if (!function_exists('teclado_numerico')) {
     /**
      * Genera el componente de teclado numérico modal.
@@ -150,8 +206,8 @@ BUTTON;
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
-                    <h3 class="text-white text-lg font-medium">Ingresar Clave</h3>
-                    <p id="nombreVendedorTeclado" class="text-indigo-100 text-sm mt-0.5">Vendedor</p>
+                    <h3 class="text-white text-sm ">Ingresar Clave</h3>
+                    <p id="nombreVendedorTeclado" class="text-white text-lg font-bold mt-1 tracking-widest">Vendedor</p>
                     
                     <!-- Display Clave -->
                     <div class="mt-2 bg-indigo-800/50 rounded-lg p-2 flex justify-center items-center h-10">

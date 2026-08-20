@@ -10,7 +10,7 @@
                     class="categoria-btn h-full w-36 bg-white border border-orange-300 hover:bg-orange-50 hover:border-orange-400 active:bg-orange-200 transition-all flex flex-row items-center justify-center space-x-1 px-1 group cursor-pointer focus:outline-none">
                     <span class="text-xl group-hover:scale-110 transition-transform"><?= $cat['icono'] ?></span>
                     <span
-                        class="font-bold text-gray-600 text-sm group-hover:text-orange-600 group-active:text-black text-left leading-tight line-clamp-2"><?= $cat['nombre'] ?></span>
+                        class="font-bold text-gray-600 text-md group-hover:text-orange-600 group-active:text-black text-left leading-tight line-clamp-2"><?= $cat['nombre'] ?></span>
                 </button>
             <?php endforeach; ?>
         </div>
@@ -65,26 +65,24 @@
 
 <!-- FILA INFERIOR: PRODUCTOS (Resto de altura) -->
 <section class="flex-1 overflow-y-auto p-2  custom-scrollbar bg-gray-300">
-    <div class="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2 p-1">
+    <div class="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-2 p-1">
         <?php foreach ($productos as $prod): ?>
             <button onclick="agregarProducto(<?= $prod['id'] ?>, '<?= esc($prod['nombre']) ?>', <?= $prod['precio'] ?>)"
                 data-categoria="<?= $prod['categoria_id'] ?? '' ?>"
-                class="producto-card relative bg-white border border-gray-200 rounded-md p-2 px-1 pb-0 shadow-sm hover:shadow-md hover:border-indigo-400 hover:-translate-y-1 transition-all flex flex-col items-center justify-between text-center h-26 active:scale-95 group">
-                <!-- Increased height back to h-48 for layout -->
+                class="producto-card relative isolate bg-white border border-gray-200 rounded-md shadow-sm hover:shadow-md hover:border-indigo-400 hover:-translate-y-1 transition-all text-center h-26 active:scale-95 group overflow-hidden">
 
-                <!-- Precio flotante -->
-                <span
-                    class="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-bl-lg rounded-tr-md shadow-sm">
-                    $<?= number_format($prod['precio'], 2) ?>
+                <!-- Imagen: ocupa el 90% superior del card -->
+                <img src="<?= $prod['imagen'] ?>" alt="<?= $prod['nombre'] ?>"
+                    class="absolute inset-x-0 top-0 w-full h-[90%] object-contain p-1 text-xs text-gray-300">
+
+                <!-- Precio: siempre visible arriba a la derecha -->
+                <span class="absolute top-0 right-0 bg-indigo-100 text-indigo-700 text-sm font-bold px-2 py-1 rounded-bl-lg rounded-tr-md shadow-sm z-10">
+                    <?= number_format($prod['precio'], 2) ?>
                 </span>
 
-                <div class="hidden sm:block w-24 h-10 mb-1 mt-3">
-                    <img src="<?= $prod['imagen'] ?>" alt="<?= $prod['nombre'] ?>"
-                        class="w-full h-full object-contain text-xs text-gray-300">
-                </div>
-                <div class="w-full flex-1 flex items-center justify-center p-0">
-                    <h4 class="font-bold text-gray-700 text-xs leading-tight line-clamp-2"><?= $prod['nombre'] ?>
-                    </h4>
+                <!-- Nombre: siempre visible en la parte inferior -->
+                <div class="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 py-1 px-1 z-10">
+                    <h4 class="font-bold text-gray-700 text-xs leading-tight line-clamp-1"><?= $prod['nombre'] ?></h4>
                 </div>
             </button>
         <?php endforeach; ?>

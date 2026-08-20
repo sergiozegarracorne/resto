@@ -13,7 +13,7 @@
         if(!document.getElementById('comp-reloj')) return;
 
         // Formato Hora
-        document.getElementById('comp-reloj').innerText = fechaObj.toLocaleTimeString('es-PE', { hour12: true });
+        document.getElementById('comp-reloj').innerText = fechaObj.toLocaleTimeString('es-PE', { hour12: false });
         
         // Formato Fecha
         document.getElementById('comp-fecha').innerText = fechaObj.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: '2-digit' });
