@@ -11,18 +11,18 @@ class BaseApiController extends BaseController
 
     protected function rolActual(): string
     {
-        return session('usuario_turno')['rol'] ?? 'vendedor';
+        return session('usuario_turno')['rol'] ?? 'mozo';
     }
 
-    // supervisor, admin y sudo pueden cobrar/cancelar/gestionar
+    // caja, administrador y sudo pueden cobrar/cancelar/gestionar
     protected function puedeAdmin(): bool
     {
-        return in_array($this->rolActual(), ['supervisor', 'admin', 'sudo'], true);
+        return in_array($this->rolActual(), ['caja', 'administrador', 'sudo'], true);
     }
 
-    // solo admin y sudo pueden gestionar usuarios y ver caja
+    // solo administrador y sudo pueden gestionar usuarios y ver caja
     protected function puedeGestionar(): bool
     {
-        return in_array($this->rolActual(), ['admin', 'sudo'], true);
+        return in_array($this->rolActual(), ['administrador', 'sudo'], true);
     }
 }

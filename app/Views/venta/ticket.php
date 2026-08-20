@@ -48,8 +48,8 @@
 
 <!-- Totales y Acciones -->
 <?php
-$_rolActual  = session('usuario_turno')['rol'] ?? 'vendedor';
-$_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
+$_rolActual  = session('usuario_turno')['rol'] ?? 'mozo';
+$_puedeAdmin = in_array($_rolActual, ['caja', 'administrador', 'sudo'], true);
 ?>
 <div class="p-4 bg-gray-50 border-t border-gray-200">
     <div class="flex justify-between items-center mb-4 text-xl font-bold text-gray-800">
@@ -87,7 +87,7 @@ $_puedeAdmin = in_array($_rolActual, ['supervisor', 'admin', 'sudo'], true);
     let currentMesa = null;
     let saveTimeout = null;
     let preCuentaMode = false;
-    const esVendedor = <?= ($_rolActual === 'vendedor') ? 'true' : 'false' ?>;
+    const esVendedor = <?= ($_rolActual === 'mozo') ? 'true' : 'false' ?>;
 
     // Interface used by Mesas Overlay
     window.app = {

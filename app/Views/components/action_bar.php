@@ -1,5 +1,5 @@
 <?php
-$_rol = session('usuario_turno')['rol'] ?? 'vendedor';
+$_rol = session('usuario_turno')['rol'] ?? 'mozo';
 
 // Catálogo completo de botones de acción.
 // 'roles' define quiénes lo ven por defecto.
@@ -14,7 +14,7 @@ $_catalogo = [
         'color'   => 'red',
         'id'      => 'btn-corregir',
         'attrs'   => 'style="opacity:0.4" disabled',
-        'roles'   => ['vendedor', 'cajero', 'admin', 'sudo'],
+        'roles'   => ['mozo', 'caja', 'administrador', 'sudo'],
     ],
     'mesas' => [
         'label'   => 'Mesas',
@@ -22,7 +22,7 @@ $_catalogo = [
         'type'    => 'button',
         'onclick' => 'toggleMesasOverlay()',
         'color'   => 'indigo',
-        'roles'   => ['vendedor', 'cajero', 'admin', 'sudo'],
+        'roles'   => ['mozo', 'caja', 'administrador', 'sudo'],
     ],
     'comandas' => [
         'label'   => 'Comandas',
@@ -30,7 +30,7 @@ $_catalogo = [
         'type'    => 'button',
         'onclick' => 'showComandaModal()',
         'color'   => 'amber',
-        'roles'   => ['vendedor', 'cajero', 'admin', 'sudo'],
+        'roles'   => ['mozo', 'caja', 'administrador', 'sudo'],
     ],
     'gabeta' => [
         'label'   => 'GABETA',
@@ -38,7 +38,7 @@ $_catalogo = [
         'type'    => 'button',
         'onclick' => '',
         'color'   => 'emerald',
-        'roles'   => ['cajero', 'admin', 'sudo'],
+        'roles'   => ['caja', 'administrador', 'sudo'],
     ],
     'vendedores' => [
         'label'  => 'Vendedores',
@@ -46,7 +46,7 @@ $_catalogo = [
         'type'   => 'link',
         'href'   => '/',
         'color'  => 'orange',
-        'roles'  => ['vendedor', 'cajero', 'admin', 'sudo'],
+        'roles'  => ['mozo', 'caja', 'administrador', 'sudo'],
     ],
     'opciones' => [
         'label'  => 'Opciones',
@@ -54,7 +54,7 @@ $_catalogo = [
         'type'   => 'link',
         'href'   => 'panel',
         'color'  => 'slate',
-        'roles'  => ['cajero', 'admin', 'sudo'],
+        'roles'  => ['caja', 'administrador', 'sudo'],
     ],
 ];
 

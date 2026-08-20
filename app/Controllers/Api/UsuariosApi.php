@@ -50,7 +50,7 @@ class UsuariosApi extends BaseApiController
         $campos = [
             'codigo' => !empty($json['codigo']) ? strtoupper(trim($json['codigo'])) : null,
             'nombre' => trim($json['nombre']),
-            'rol'    => $json['rol'] ?? 'vendedor',
+            'rol'    => $json['rol'] ?? 'mozo',
             'estado' => isset($json['estado']) ? (int) $json['estado'] : 1,
         ];
 
@@ -71,11 +71,17 @@ class UsuariosApi extends BaseApiController
 
         // Verificar que no se quite el rol sudo si es el último
         if (isset($json['rol']) && $json['rol'] !== 'sudo') {
-            $sudos = $model->where('rol', 'sudo')->where('estado', 1)->where('id_usuario !=', $json['id'])->countAllResults();
+            $sudos  = $model->where('rol', 'sudo')->where('estado', 1)->where('id_usuario !=', $json['id'])->countAllResults();
             $actual = $model->find($json['id']);
             if ($actual && $actual['rol'] === 'sudo' && $sudos === 0) {
                 return $this->fail('Debe existir al menos un usuario sudo activo');
             }
+        }
+
+        // Sincronizar id_rol con el nombre del rol
+        $roleRow = db_connect()->table('roles')->where('nombre', $campos['rol'])->get()->getRowArray();
+        if ($roleRow) {
+            $campos['id_rol'] = $roleRow['id'];
         }
 
         try {
@@ -107,7 +113,7 @@ class UsuariosApi extends BaseApiController
             return $this->failNotFound('Usuario no encontrado');
         }
 
-        if ($usuario['rol'] === 'sudo') {
+        if (($usuario['rol'] ?? '') === 'sudo') {
             $otros = $model->where('rol', 'sudo')->where('estado', 1)->where('id_usuario !=', $json['id'])->countAllResults();
             if ($otros === 0) {
                 return $this->fail('No puedes eliminar el único usuario sudo');

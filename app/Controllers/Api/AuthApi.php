@@ -29,7 +29,7 @@ class AuthApi extends BaseApiController
             session()->set('usuario_turno', [
                 'id'     => $usuario['id_usuario'],
                 'nombre' => $usuario['nombre'],
-                'rol'    => $usuario['rol'] ?? 'vendedor',
+                'rol'    => $usuario['rol'] ?? 'mozo',
             ]);
 
             return $this->respond(['success' => true, 'message' => 'Acceso autorizado']);

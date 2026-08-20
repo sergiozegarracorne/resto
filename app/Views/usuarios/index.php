@@ -35,20 +35,20 @@
                            border-orange-400 bg-orange-100 text-orange-600">
                 Todos
             </button>
-            <button onclick="filtrar('vendedor')" data-f="vendedor"
+            <button onclick="filtrar('mozo')" data-f="mozo"
                     class="filtro-btn h-8 px-4 rounded-lg border font-semibold text-xs whitespace-nowrap transition
                            border-gray-200 bg-white text-gray-500 hover:border-orange-400 hover:bg-orange-50">
-                Vendedores
+                Mozos
             </button>
-            <button onclick="filtrar('supervisor')" data-f="supervisor"
+            <button onclick="filtrar('caja')" data-f="caja"
                     class="filtro-btn h-8 px-4 rounded-lg border font-semibold text-xs whitespace-nowrap transition
                            border-gray-200 bg-white text-gray-500 hover:border-orange-400 hover:bg-orange-50">
-                Supervisores
+                Caja
             </button>
-            <button onclick="filtrar('admin')" data-f="admin"
+            <button onclick="filtrar('administrador')" data-f="administrador"
                     class="filtro-btn h-8 px-4 rounded-lg border font-semibold text-xs whitespace-nowrap transition
                            border-gray-200 bg-white text-gray-500 hover:border-orange-400 hover:bg-orange-50">
-                Admins
+                Administradores
             </button>
             <button onclick="filtrar('sudo')" data-f="sudo"
                     class="filtro-btn h-8 px-4 rounded-lg border font-semibold text-xs whitespace-nowrap transition
@@ -158,20 +158,20 @@
                 <div>
                     <label class="block text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">Rol</label>
                     <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="seleccionarRol('vendedor')" data-rol="vendedor"
+                        <button type="button" onclick="seleccionarRol('mozo')" data-rol="mozo"
                                 class="rol-btn flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all">
                             <span class="w-9 h-9 rounded-lg bg-indigo-500 flex items-center justify-center text-white text-base shrink-0">🛒</span>
-                            <div><p class="font-bold text-gray-800 text-sm leading-none">Vendedor</p><p class="text-xs text-gray-400 mt-0.5">Opera el POS</p></div>
+                            <div><p class="font-bold text-gray-800 text-sm leading-none">Mozo</p><p class="text-xs text-gray-400 mt-0.5">Opera el POS</p></div>
                         </button>
-                        <button type="button" onclick="seleccionarRol('supervisor')" data-rol="supervisor"
+                        <button type="button" onclick="seleccionarRol('caja')" data-rol="caja"
                                 class="rol-btn flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all">
-                            <span class="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center text-white text-base shrink-0">📊</span>
-                            <div><p class="font-bold text-gray-800 text-sm leading-none">Supervisor</p><p class="text-xs text-gray-400 mt-0.5">Reportes</p></div>
+                            <span class="w-9 h-9 rounded-lg bg-blue-500 flex items-center justify-center text-white text-base shrink-0">💰</span>
+                            <div><p class="font-bold text-gray-800 text-sm leading-none">Caja</p><p class="text-xs text-gray-400 mt-0.5">Cobros y caja</p></div>
                         </button>
-                        <button type="button" onclick="seleccionarRol('admin')" data-rol="admin"
+                        <button type="button" onclick="seleccionarRol('administrador')" data-rol="administrador"
                                 class="rol-btn flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all">
                             <span class="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center text-white text-base shrink-0">⚙️</span>
-                            <div><p class="font-bold text-gray-800 text-sm leading-none">Admin</p><p class="text-xs text-gray-400 mt-0.5">Configuración</p></div>
+                            <div><p class="font-bold text-gray-800 text-sm leading-none">Administrador</p><p class="text-xs text-gray-400 mt-0.5">Configuración</p></div>
                         </button>
                         <button type="button" onclick="seleccionarRol('sudo')" data-rol="sudo"
                                 class="rol-btn flex items-center gap-3 px-3 py-3 rounded-xl border-2 text-left transition-all">
@@ -179,7 +179,7 @@
                             <div><p class="font-bold text-gray-800 text-sm leading-none">Sudo</p><p class="text-xs text-gray-400 mt-0.5">Acceso total</p></div>
                         </button>
                     </div>
-                    <input type="hidden" id="u-rol" value="vendedor">
+                    <input type="hidden" id="u-rol" value="mozo">
                 </div>
 
                 <!-- Contraseña -->
@@ -281,16 +281,16 @@ const BASE = '<?= base_url() ?>';
 
 // colores confirmados en el CSS compilado
 const ROL = {
-    vendedor:   { label:'Vendedor',   icon:'🛒', avatarCls:'bg-indigo-500', topbar:'#6366f1', chipBorder:'#6366f1', chipBg:'#e0e7ff' },
-    supervisor: { label:'Supervisor', icon:'📊', avatarCls:'bg-blue-500',   topbar:'#3b82f6', chipBorder:'#3b82f6', chipBg:'#dbeafe' },
-    admin:      { label:'Admin',      icon:'⚙️', avatarCls:'bg-orange-500', topbar:'#f97316', chipBorder:'#f97316', chipBg:'#ffedd5' },
-    sudo:       { label:'Sudo',       icon:'🔑', avatarCls:'bg-red-500',    topbar:'#ef4444', chipBorder:'#ef4444', chipBg:'#fee2e2' },
+    mozo:          { label:'Mozo',          icon:'🛒', avatarCls:'bg-indigo-500', topbar:'#6366f1', chipBorder:'#6366f1', chipBg:'#e0e7ff' },
+    caja:          { label:'Caja',          icon:'💰', avatarCls:'bg-blue-500',   topbar:'#3b82f6', chipBorder:'#3b82f6', chipBg:'#dbeafe' },
+    administrador: { label:'Administrador', icon:'⚙️', avatarCls:'bg-orange-500', topbar:'#f97316', chipBorder:'#f97316', chipBg:'#ffedd5' },
+    sudo:          { label:'Sudo',          icon:'🔑', avatarCls:'bg-red-500',    topbar:'#ef4444', chipBorder:'#ef4444', chipBg:'#fee2e2' },
 };
 // badge html por rol (inline styles para no depender de clases extra)
 function badgeHtml(rol) {
-    const c = { vendedor:'#4338ca;background:#e0e7ff', supervisor:'#1d4ed8;background:#dbeafe', admin:'#c2410c;background:#ffedd5', sudo:'#dc2626;background:#fee2e2' };
-    const r = ROL[rol] || ROL.vendedor;
-    return `<span style="color:${c[rol] || c.vendedor};font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:4px">${r.icon} ${r.label}</span>`;
+    const c = { mozo:'#4338ca;background:#e0e7ff', caja:'#1d4ed8;background:#dbeafe', administrador:'#c2410c;background:#ffedd5', sudo:'#dc2626;background:#fee2e2' };
+    const r = ROL[rol] || ROL.mozo;
+    return `<span style="color:${c[rol] || c.mozo};font-size:11px;font-weight:700;padding:2px 10px;border-radius:999px;display:inline-flex;align-items:center;gap:4px">${r.icon} ${r.label}</span>`;
 }
 
 let usuarios = [], rolActivo = null;
@@ -357,7 +357,7 @@ function renderTabla() {
     document.getElementById('card-tabla').style.display = 'block';
 
     document.getElementById('tabla-body').innerHTML = lista.map(u => {
-        const r    = ROL[u.rol] || ROL.vendedor;
+        const r    = ROL[u.rol] || ROL.mozo;
         const inac = u.estado == 0;
         const opac = inac ? 'opacity-50' : '';
         return `
@@ -412,7 +412,7 @@ function actualizarPreview() {
 
 // ── Seleccionar rol ───────────────────────────────────────
 function seleccionarRol(rol) {
-    const r = ROL[rol] || ROL.vendedor;
+    const r = ROL[rol] || ROL.mozo;
     document.getElementById('u-rol').value = rol;
     document.getElementById('modal-rol').textContent = r.label;
 
@@ -459,7 +459,7 @@ function abrirModal(u = null) {
     document.getElementById('u-codigo').value = u?.codigo     || '';
     document.getElementById('u-clave').value  = '';
     document.getElementById('clave-hint').textContent = esEdicion ? 'dejar vacío para no cambiar' : 'obligatoria';
-    seleccionarRol(u?.rol || 'vendedor');
+    seleccionarRol(u?.rol || 'mozo');
     setEstado(u ? u.estado == 1 : true);
     actualizarPreview();
     mostrarError(null);
