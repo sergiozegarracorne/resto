@@ -18,12 +18,17 @@ $routes->get('/caja',           'Caja::index');
 $routes->get('/almacen/compras', 'Almacen::compras');
 $routes->get('/almacen/insumos', 'Almacen::insumos');
 
+//BOTONES PARA MENU COMPLETO - INICIO
+
 $routes->get('/productos', 'Productos::index');
 $routes->get('/mesas',     'Mesas::index');
 $routes->get('/combos',      'Combos::index');
 $routes->get('/impresoras',  'Impresoras::index');
 $routes->get('/usuarios',  'Usuarios::index');
 $routes->get('/ventas',    'Ventas::index');
+$routes->get('/roles',     'Roles::index');
+//BOTONES PARA MENU COMPLETO - FIN
+
 
 // ─── API ──────────────────────────────────────────────────────────────────────
 $routes->group('api', function ($routes) {
@@ -89,6 +94,24 @@ $routes->group('api', function ($routes) {
     $routes->get('ventas/get_lista',          'Api\VentasReporteApi::get_lista');
     $routes->get('ventas/get_detalle/(:num)', 'Api\VentasReporteApi::get_detalle/$1');
     $routes->post('ventas/imprimir',          'Api\VentasReporteApi::imprimir');
+
+    // Roles y permisos — catálogo de roles
+    $routes->get('roles/catalogo',               'Api\RolesApi::get_roles');
+    $routes->post('roles/save_rol',              'Api\RolesApi::save_rol');
+    $routes->post('roles/delete_rol',            'Api\RolesApi::delete_rol');
+    // Roles y permisos — botones de la barra
+    $routes->get('roles/botones',               'Api\RolesApi::get_botones');
+    $routes->post('roles/save_boton',           'Api\RolesApi::save_boton');
+    $routes->post('roles/delete_boton',         'Api\RolesApi::delete_boton');
+    // Roles y permisos — catálogo de rutas
+    $routes->get('roles/rutas',                 'Api\RolesApi::get_rutas');
+    $routes->get('roles/rutas_sistema',         'Api\RolesApi::get_rutas_sistema');
+    $routes->post('roles/save_ruta',            'Api\RolesApi::save_ruta');
+    $routes->post('roles/delete_ruta',          'Api\RolesApi::delete_ruta');
+    $routes->post('roles/toggle_ruta',          'Api\RolesApi::toggle_ruta');
+    // Roles y permisos — permisos de acceso
+    $routes->get('roles/permisos_rutas',        'Api\RolesApi::get_permisos_rutas');
+    $routes->post('roles/update_permiso_ruta',  'Api\RolesApi::update_permiso_ruta');
 
     // Impresoras
     $routes->get('impresoras/get_all',       'Api\ImpresorasApi::get_all');

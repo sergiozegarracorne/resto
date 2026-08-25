@@ -95,6 +95,15 @@ Panel Central - Resta
             </div>
             <span class="text-lg font-bold text-gray-700">Impresoras</span>
         </a>
+
+        <a href="<?= base_url('roles') ?>"
+            class="bg-white border-b-4 border-violet-500 rounded-2xl shadow-md active:scale-95 active:bg-violet-50 transition-all p-6 flex flex-col items-center justify-center gap-4 h-36 group">
+            <div
+                class="w-16 h-16 bg-violet-100 text-violet-600 rounded-full flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                🔐
+            </div>
+            <span class="text-lg font-bold text-gray-700">Roles / Permisos</span>
+        </a>
         <?php endif; ?>
 
 
